@@ -34,11 +34,11 @@ const userSchema = mongoose.Schema(
     // //      type: mongoose.Schema.Types.ObjectId,
     // //         ref: "Adress",
     // //   },
-    // role: {
-    //   type: String,
-    //   enum: ["admin", "user"],
-    //   default: "user",
-    // },
+    role: {
+      type: String,
+      enum: ["admin", "user"],
+      default: "user",
+    },
     // currencyPreference: {
     //   type: String,
     //   enum: ["USD", "EUR", "GBP"], // Add your supported currencies

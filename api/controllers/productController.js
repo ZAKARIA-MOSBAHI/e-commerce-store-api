@@ -1,3 +1,4 @@
+// does the image get deleted when updated ?
 const mongoose = require("mongoose");
 const Product = require("../models/product");
 const { removeFileExtension } = require("../../utils/utils");
