@@ -11,9 +11,10 @@ module.exports.signup = async (req, res) => {
       req.body;
 
     if (password.trim().length < 8) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 8 characters" });
+      return res.status(400).json({
+        field: "password",
+        message: "Password must be at least 8 characters",
+      });
     }
 
     // Using await with bcrypt.hash to stay in the try/catch scope
@@ -39,7 +40,6 @@ module.exports.signup = async (req, res) => {
 // login,  you can add 2 factor auth middleware for admin when logged in
 module.exports.login = async (req, res) => {
   try {
-    console.log(req.body);
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
@@ -61,7 +61,7 @@ module.exports.login = async (req, res) => {
         expiresIn: "1h",
       }
     );
-    const updating = await User.findByIdAndUpdate(
+    await User.findByIdAndUpdate(
       { _id: user._id },
       {
         $set: {
@@ -81,7 +81,9 @@ module.exports.login = async (req, res) => {
 // get users (admin)
 module.exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find({}, { __v: 0 }).select("-password");
+    const users = await User.find({}, { __v: 0 })
+      .select("-password")
+      .populate("address");
     return res.status(200).json({ users });
   } catch (e) {
     return handleErrors(e, res);
@@ -91,7 +93,9 @@ module.exports.getUsers = async (req, res) => {
 module.exports.getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).select("-password -__v");
+    const user = await User.findById(id)
+      .select("-password -__v")
+      .populate("address");
     return res.status(200).json({ user });
   } catch (e) {
     return handleErrors(e, res);
@@ -100,8 +104,11 @@ module.exports.getUserById = async (req, res) => {
 // get the logging user account
 module.exports.getClientUser = async (req, res) => {
   try {
+    console.log(req.user);
     const { userId } = req.user; // this is passed by the auth middleware
-    const user = await User.findById(userId).select("-password -role");
+    const user = await User.findById(userId)
+      .select("-password -role")
+      .populate("address");
     return res.status(200).json({ user });
   } catch (e) {
     return handleErrors(e, res);
@@ -128,6 +135,77 @@ module.exports.deleteUser = async (req, res) => {
     return res
       .status(200)
       .json({ message: "User deleted successfully", response });
+  } catch (e) {
+    return handleErrors(e, res);
+  }
+};
+// Update the logged-in user account (client)
+module.exports.updateClientUser = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    // Define allowed fields for client updates (exclude 'role')
+    const allowedFields = [
+      "name",
+      "email",
+      "password",
+      "phone",
+      "currencyPreference",
+    ];
+    const updateData = {};
+
+    // Populate updateData with only present and allowed fields
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // Optionally handle password hashing here if necessary
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 12);
+    }
+
+    const user = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+    });
+    return res.status(200).json({ user });
+  } catch (e) {
+    return handleErrors(e, res);
+  }
+};
+
+// Update a user (admin)
+module.exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Define allowed fields for admin updates (include 'role')
+    const allowedFields = [
+      "name",
+      "email",
+      "password",
+      "role",
+      "phone",
+      "currencyPreference",
+    ];
+    const updateData = {};
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // Handle password hashing for admin updates as well
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 12);
+    }
+
+    const user = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+    return res.status(200).json({ user });
   } catch (e) {
     return handleErrors(e, res);
   }

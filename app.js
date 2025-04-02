@@ -14,6 +14,7 @@ const cartRouter = require("./api/routes/cart");
 const ordersRouter = require("./api/routes/orders");
 const categoriesRouter = require("./api/routes/categories");
 const subcategoriesRouter = require("./api/routes/subcategories");
+const addressRouter = require("./api/routes/address");
 //DATABASE CONNECTION
 mongoose
   .connect("mongodb://localhost:27017/store", {
@@ -52,6 +53,7 @@ app.use("/cart", cartRouter);
 app.use("/orders", ordersRouter);
 app.use("/categories", categoriesRouter);
 app.use("/subcategories", subcategoriesRouter);
+app.use("/address", addressRouter);
 // ERROR HANDLERS
 app.use((req, res, next) => {
   // this handler will be called when no route is matched

@@ -13,7 +13,7 @@ const handleErrors = (err, res) => {
   if (err.name === "ValidationError") {
     //collects all schema validation failures during a save operation.
     return res.status(400).json({
-      errors: Object.values(err.errors).map((e) => ({
+      messages: Object.values(err.errors).map((e) => ({
         field: e.path,
         message: e.message,
       })),
