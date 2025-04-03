@@ -8,13 +8,13 @@ const bodyParser = require("body-parser");
 // mongodb
 const mongoose = require("mongoose");
 // ROUTERS
-const productRouter = require("./api/routes/products");
-const usersRouter = require("./api/routes/users");
-const cartRouter = require("./api/routes/cart");
-const ordersRouter = require("./api/routes/orders");
-const categoriesRouter = require("./api/routes/categories");
-const subcategoriesRouter = require("./api/routes/subcategories");
-const addressRouter = require("./api/routes/address");
+const productRouter = require("./api/routes/productRoutes");
+const usersRouter = require("./api/routes/userRoutes");
+const cartRouter = require("./api/routes/cartRoutes");
+const ordersRouter = require("./api/routes/orderRoutes");
+const categoriesRouter = require("./api/routes/categoriyRoutes");
+const subcategoriesRouter = require("./api/routes/subcategoryRoutes");
+const addressRouter = require("./api/routes/addressRoutes");
 //DATABASE CONNECTION
 mongoose
   .connect("mongodb://localhost:27017/store", {
