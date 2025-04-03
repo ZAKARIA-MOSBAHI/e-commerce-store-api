@@ -48,7 +48,7 @@ router.post("/", (req, res) => {
     );
 });
 // UPDATE A CATEGORY
-router.patch("/:id", (req, res) => {
+router.put("/:id", (req, res) => {
   const { id } = req.params;
   const updatedCategory = {};
   Object.keys(req.body).forEach(

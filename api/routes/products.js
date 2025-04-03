@@ -5,6 +5,7 @@ const Product = require("../models/product");
 const multer = require("multer");
 const { removeFileExtension } = require("../../utils/utils");
 const ProductController = require("../controllers/productController");
+const { authenticate, authorizeAdmin } = require("../middlewares/auth");
 const storage = multer.diskStorage({
   // multer will execute this functions whenever a file is received
   destination: (req, file, callback) => {
@@ -38,12 +39,14 @@ const upload = multer({
   fileFilter: fileFilters,
 });
 
-router.get("/", ProductController.getAllProducts);
+router.get("/", authenticate, ProductController.getAllProducts);
 // GET PRODUCT BY ID
-router.get("/:id", ProductController.getProductById);
+router.get("/:id", authenticate, ProductController.getProductById);
 // ADD A PRODUCT
 router.post(
   "/",
+  authenticate,
+  authorizeAdmin,
   upload.fields([
     { name: "mainImage", maxCount: 1 },
     { name: "additionalImages", maxCount: 4 },
@@ -52,10 +55,15 @@ router.post(
 );
 
 // DELETE A PRODUCT
-router.delete("/:id", ProductController.deleteProduct);
+router.delete(
+  "/:id",
+  authenticate,
+  authorizeAdmin,
+  ProductController.deleteProduct
+);
 
 // UPDATE A PRODUCT
-router.patch(
+router.put(
   "/:id",
   (req, res, next) => {
     // Wrap the Multer middleware to catch errors
