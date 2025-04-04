@@ -1,19 +1,12 @@
 const express = require("express");
 const router = express.Router();
-
+const cartController = require("../controllers/cartController");
+const { authenticate } = require("../middlewares/auth");
 // GET THE USER'S CURRENT CART
-router.get("/", (req, res) => {
-  return res.status(200).json({
-    message: "cart retrieved successfully",
-  });
-});
+router.get("/me", authenticate, cartController.getClientCart);
 
-// ADD AN ITEM TO THE CART
-router.post("/items", (req, res) => {
-  return res.status(200).json({
-    message: "this route is for adding items to the cart (post)",
-  });
-});
+// ADD AN ITEM TO THE CLIENT'S CART
+router.post("/me/items", authenticate, cartController.addItemsToClientCart);
 // APPLY A DISCOUNT TO THE CART
 router.post("/apply-discount", (req, res) => {
   return res.status(200).json({

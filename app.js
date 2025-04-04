@@ -49,7 +49,7 @@ app.use((req, res, next) => {
 // LISTENERS
 app.use("/users", usersRouter);
 app.use("/products", productRouter);
-app.use("/cart", cartRouter);
+app.use("/carts", cartRouter);
 app.use("/orders", ordersRouter);
 app.use("/categories", categoriesRouter);
 app.use("/subcategories", subcategoriesRouter);

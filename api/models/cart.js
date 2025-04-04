@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-const cartSchema = mongoose.Schema(
+
+const cartSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -11,11 +12,16 @@ const cartSchema = mongoose.Schema(
         productId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
+          required: true, // Added required constraint
         },
         quantity: {
           type: Number,
           min: 1,
           default: 1,
+        },
+        itemSize: {
+          type: String,
+          required: true,
         },
       },
     ],
@@ -23,22 +29,15 @@ const cartSchema = mongoose.Schema(
   {
     timestamps: true,
     toJSON: {
-      virtuals: true, // this will make sure to include the virtual total field we made
-      transform: (document, returnedDoc) => {
-        // remove the properties _id and __v from the returned document
-        delete returnedDoc._id;
-        delete returnedDoc.__v;
-        return returnedDoc;
+      virtuals: true,
+      transform: (doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
       },
     },
   }
 );
-cartSchema.virtual("total").get(function () {
-  // since we can't store the total because it's constantly changing
-  // this method will calculate it on every request and add it as a property to the document
-  return this.items.reduce((sum, item) => {
-    return sum + item.quantity * item.product.price;
-  }, 0);
-});
-const Cart = mongoose.model("Cart", cartSchema);
-module.exports = Cart;
+
+module.exports = mongoose.model("Cart", cartSchema);
