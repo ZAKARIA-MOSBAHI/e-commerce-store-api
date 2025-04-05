@@ -17,7 +17,7 @@ const discountSchema = new mongoose.Schema({
   minCartValue: Number,
   validFrom: Date,
   validUntil: Date,
-  maxUses: Number,
+  maxUsesPerUser: Number,
   usedCount: {
     type: Number,
     default: 0,

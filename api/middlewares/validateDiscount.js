@@ -1,9 +1,12 @@
 const Cart = require("../models/cart");
+const User = require("../models/user");
 const Discount = require("../models/discount");
 
 exports.validateDiscount = async (req, res, next) => {
   const { discountCode } = req.body;
   const { userId } = req.user;
+  const discountUsed = await Discount.findOne({ code: discountCode });
+  const user = await User.findById(userId);
   const cart = await Cart.findOne({ userId }).populate("items.productId");
   // Get discount
   const discount = await Discount.findOne({ code: discountCode });
@@ -16,10 +19,12 @@ exports.validateDiscount = async (req, res, next) => {
   if (new Date() > discount.validUntil) {
     return res.status(400).json({ error: "Discount has expired" });
   }
-
+  const userUsedThisDiscount = user.usedDiscounts.find(
+    (d) => d.discount.toString() === discountUsed._id.toString()
+  );
   // Check usage limits
-  if (discount.usedCount >= discount.maxUses) {
-    return res.status(400).json({ error: "Discount usage exceeded" });
+  if (userUsedThisDiscount) {
+    return res.status(400).json({ error: "You already used this discount" });
   }
 
   // Check user-specific discounts

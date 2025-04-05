@@ -24,6 +24,8 @@ router.post(
   validateDiscount,
   cartController.applyDiscount
 );
+// REMOVE A DISCOUNT FROM THE CART
+router.post("/remove-discount", authenticate, cartController.removeDiscount);
 // TURN THE CART INTO AN ORDER
 router.post("/checkout", (req, res) => {
   return res.status(200).json({

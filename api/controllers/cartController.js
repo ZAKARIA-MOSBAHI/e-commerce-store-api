@@ -1,8 +1,14 @@
+/*TIP : USE MongoDB sessions to run multiple related operations 
+(updating the cart, user, and discount) within a single transaction helps ensure consistency. 
+If any update fails, the whole transaction is rolled back.*/
 const mongoose = require("mongoose");
 const Cart = require("../models/cart");
 const handleErrors = require("../../utils/errorHandler");
 const Product = require("../models/product");
+const Discount = require("../models/discount");
+const User = require("../models/user");
 
+// GET THE CLIENT'S CART
 module.exports.getClientCart = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -24,7 +30,7 @@ module.exports.getClientCart = async (req, res) => {
     return handleErrors(e, res);
   }
 };
-
+// ADD ITEM TO THE CLIENT'S CART
 module.exports.addItemsToClientCart = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -120,8 +126,7 @@ module.exports.addItemsToClientCart = async (req, res) => {
     return handleErrors(e, res);
   }
 };
-
-// Remove from Cart Controller
+// REMOVE ITEM FROM THE CLIENT'S CART
 module.exports.deleteItemFromClientCart = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -200,15 +205,19 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     return handleErrors(e, res);
   }
 };
-
-// Clear Cart Controller
+// CLEAR CLIENT'S CART
 module.exports.clearClientCart = async (req, res) => {
   try {
     const { userId } = req.user;
 
     const clearedCart = await Cart.findOneAndUpdate(
       { userId },
-      [{ $set: { items: [] } }, { $set: { total: 0 } }],
+      [
+        { $set: { items: [] } },
+        { $set: { total: 0 } },
+        { $set: { discountTotal: 0 } },
+        { $set: { appliedDiscounts: [] } },
+      ],
       { new: true }
     );
 
@@ -221,20 +230,21 @@ module.exports.clearClientCart = async (req, res) => {
         total: 0,
         createdAt: clearedCart.createdAt,
         updatedAt: clearedCart.updatedAt,
+        appliedDiscounts: [],
+        discountTotal: 0,
       },
     });
   } catch (e) {
     return handleErrors(e, res);
   }
 };
-
+// APPLY DISCOUNT TO THE CLIENT'S CART
 module.exports.applyDiscount = async (req, res) => {
   try {
     const { userId } = req.user;
     const discount = req.validDiscount;
     const userCart = await Cart.findOne({ userId });
 
-    console.log("user cart is : ", userCart);
     let discountAmount = 0;
     switch (discount.type) {
       case "percentage":
@@ -252,6 +262,61 @@ module.exports.applyDiscount = async (req, res) => {
         console.log("free shipping");
         break;
     }
+    console.log("discount amount is : ", discountAmount);
+    const updatedCart = await Cart.findByIdAndUpdate(
+      userCart._id,
+      {
+        $push: {
+          appliedDiscounts: {
+            code: discount.code,
+            discountId: discount._id,
+            amount: discountAmount,
+          },
+        },
+        $inc: { discountTotal: userCart.total - discountAmount },
+      },
+      { new: true }
+    );
+    // Update user's used discounts
+    await User.findByIdAndUpdate(userId, {
+      $push: {
+        usedDiscounts: {
+          discount: discount._id,
+          usedAt: new Date(),
+        },
+      },
+    });
+
+    // Update discount usage count
+    await Discount.findByIdAndUpdate(discount._id, {
+      $inc: { usedCount: 1 },
+    });
+
+    res.json(updatedCart);
+  } catch (e) {
+    return handleErrors(e, res);
+  }
+};
+// REMOVE DISCOUNT FROM CART
+module.exports.removeDiscount = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { discountCode } = req.body;
+    const discount = await Discount.findOne({ code: discountCode });
+    const user = await User.findById(userId);
+    if (!discount) {
+      return res.status(404).json({ message: "Discount not found" });
+    }
+    const updatedCart = await Cart.findOneAndUpdate(
+      { userId },
+      [{ $set: { appliedDiscounts: [] } }, { $set: { discountTotal: 0 } }],
+      { new: true, runValidators: true }
+    );
+    await User.findByIdAndUpdate(userId, { $set: { usedDiscounts: [] } });
+    await Discount.findByIdAndUpdate(discount._id, {
+      $inc: { usedCount: -1 },
+    });
+    res.json(updatedCart);
   } catch (e) {
     return handleErrors(e, res);
   }
