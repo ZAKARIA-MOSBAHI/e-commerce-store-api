@@ -7,6 +7,15 @@ router.get("/me", authenticate, cartController.getClientCart);
 
 // ADD AN ITEM TO THE CLIENT'S CART
 router.post("/me/items", authenticate, cartController.addItemsToClientCart);
+
+// DELETE AN ITEM FROM THE CLIENT'S CART
+router.delete(
+  "/me/items",
+  authenticate,
+  cartController.deleteItemFromClientCart
+);
+// CLEAR THE CLIENT'S CART
+router.delete("/me", authenticate, cartController.clearClientCart);
 // APPLY A DISCOUNT TO THE CART
 router.post("/apply-discount", (req, res) => {
   return res.status(200).json({
