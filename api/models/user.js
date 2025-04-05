@@ -52,6 +52,23 @@ const userSchema = mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // the discounts that are used by the user
+    usedDiscounts: [
+      {
+        discount: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Discount",
+        },
+        usedAt: Date,
+      },
+    ],
+    // the discounts that are user specific
+    eligibleDiscounts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Discount",
+      },
+    ],
   },
   {
     timestamps: true, // adds createdAt and updatedAt fields

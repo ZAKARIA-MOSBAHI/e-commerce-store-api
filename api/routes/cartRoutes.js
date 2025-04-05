@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const cartController = require("../controllers/cartController");
 const { authenticate } = require("../middlewares/auth");
+const { validateDiscount } = require("../middlewares/validateDiscount");
 // GET THE USER'S CURRENT CART
 router.get("/me", authenticate, cartController.getClientCart);
 
@@ -17,11 +18,12 @@ router.delete(
 // CLEAR THE CLIENT'S CART
 router.delete("/me", authenticate, cartController.clearClientCart);
 // APPLY A DISCOUNT TO THE CART
-router.post("/apply-discount", (req, res) => {
-  return res.status(200).json({
-    message: "this route applies a discount to the cart (post)",
-  });
-});
+router.post(
+  "/apply-discount",
+  authenticate,
+  validateDiscount,
+  cartController.applyDiscount
+);
 // TURN THE CART INTO AN ORDER
 router.post("/checkout", (req, res) => {
   return res.status(200).json({
