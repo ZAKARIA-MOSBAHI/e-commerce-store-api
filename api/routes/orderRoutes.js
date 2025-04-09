@@ -1,24 +1,20 @@
 const express = require("express");
 const router = express.Router();
+const orderController = require("../controllers/orderController");
 
-router.get("/", (req, res) => {
-  return res.status(200).json({
-    message: "this route List all orders for the authenticated user.",
-  });
-});
+router.get("/", orderController.getOrders);
 // GET ORDER DETAILS BY ORDER ID
-router.get("/:id", (req, res) => {
-  const { id } = req.params;
-  return res.status(200).json({
-    message: `order id is : ${id} , this route Get order details by ID.`,
-  });
-});
-
+router.get("/:id", orderController.getOrderById);
 // DELETE AN ORDER (CANCEL IT) BY ORDER ID
-router.delete("/:id/cancel", (req, res) => {
-  const { id } = req.params;
-  return res.status(200).json({
-    message: `order id is : ${id} , this route Cancel an order (if status is "pending").`,
-  });
-});
+router.delete("/cancel/:id", orderController.cancelOrder);
+// UPDATE AN ORDER BY ORDER ID
+router.delete("/update/:id", orderController.updateOrder);
+//GET THE LOGGING USER'S ORDERS
+router.get("/me", orderController.getClientOrders);
+//GET THE LOGGING USER'S ORDER BY ORDER ID
+router.get("/me/:id", orderController.getClientOrders);
+//CANCEL THE LOGGING USER'S ORDER BY ORDER ID
+router.delete("/me/cancel/:id", orderController.cancelClientOrder);
+// CHECKOUT ROUTE , CONVERTS THE CART TO AN ORDER
+router.post("/checkout", orderController.checkout);
 module.exports = router;
