@@ -26,19 +26,8 @@ router.post(
 );
 // REMOVE A DISCOUNT FROM THE CART
 router.post("/remove-discount", authenticate, cartController.removeDiscount);
-// TURN THE CART INTO AN ORDER
-router.post("/checkout", (req, res) => {
-  return res.status(200).json({
-    message: "this route turns the cart into an order (post)",
-  });
-});
 
-// DELETE AN ITEM FROM THE CART
-router.delete("/items/:id", (req, res) => {
-  const { id } = req.params;
-  return res.status(200).json({
-    message: `cart item id is : ${id} , this route deletes the item`,
-  });
-});
+// CHECKOUT ROUTE , CONVERTS THE CART TO AN ORDER
+router.post("/checkout", authenticate, cartController.checkout);
 
 module.exports = router;

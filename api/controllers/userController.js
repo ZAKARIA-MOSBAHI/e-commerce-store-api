@@ -44,12 +44,16 @@ module.exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
-        message: "Authentication Failed",
+        field: "LoginFailedError",
+        message: "Email or password is incorrect",
       });
     }
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ message: "Invalid password" });
+      return res.status(401).json({
+        field: "LoginFailedError",
+        message: "Email or password is incorrect",
+      });
     }
     const token = jwt.sign(
       {
@@ -61,16 +65,23 @@ module.exports.login = async (req, res) => {
         expiresIn: "1h",
       }
     );
-    await User.findByIdAndUpdate(
+    const result = await User.findByIdAndUpdate(
       { _id: user._id },
       {
         $set: {
           lastLogin: Date.now(),
           // next add refresh token
         },
+      },
+      {
+        new: true,
+        runValidators: true,
       }
     );
     return res.status(200).json({
+      success: true,
+      userName: result.name,
+      role: result.role,
       message: "User logged in successfully",
       token,
     });

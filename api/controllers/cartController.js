@@ -7,7 +7,7 @@ const handleErrors = require("../../utils/errorHandler");
 const Product = require("../models/product");
 const Discount = require("../models/discount");
 const User = require("../models/user");
-
+const Order = require("../models/order");
 // GET THE CLIENT'S CART
 module.exports.getClientCart = async (req, res) => {
   try {
@@ -319,5 +319,87 @@ module.exports.removeDiscount = async (req, res) => {
     res.json(updatedCart);
   } catch (e) {
     return handleErrors(e, res);
+  }
+};
+// CONVERT THE CART TO AN ORDER
+module.exports.checkout = async (req, res) => {
+  try {
+    const { paymentMethod } = req.body;
+    const { userId } = req.user;
+
+    if (!paymentMethod) {
+      return res.status(400).json({ message: "Payment method is required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.address) {
+      return res.status(400).json({ message: "Shipping address required" });
+    }
+
+    const cart = await Cart.findOne({ userId }).populate(
+      "items.productId",
+      "price"
+    );
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Invalid or empty cart" });
+    }
+
+    // Correction clé : Conversion explicite en ObjectId et validation
+    const orderItems = cart.items.map((item) => {
+      if (!item.productId || !item.productId._id) {
+        throw new Error("Invalid product reference in cart");
+      }
+
+      return {
+        product: new mongoose.Types.ObjectId(item.productId._id), // Conversion explicite
+        quantity: item.quantity,
+        price: item.productId.price,
+        size: item.itemSize,
+      };
+    });
+
+    const order = new Order({
+      _id: new mongoose.Types.ObjectId(),
+      userId,
+      items: orderItems,
+      total: cart.discountTotal ?? cart.total,
+      shippingAddress: user.address,
+      paymentMethod,
+      status: "pending",
+    });
+
+    await order.save();
+
+    const populatedOrder = await Order.findById(order._id)
+      .populate("items.product", "name price")
+      .populate("shippingAddress", "street city state country");
+    if (populatedOrder) {
+      await Cart.updateOne(
+        { userId },
+        {
+          $set: {
+            items: [],
+            total: 0,
+            discountTotal: 0,
+            appliedDiscounts: [],
+          },
+        }
+      );
+    }
+    res.status(201).json({
+      success: true,
+      order: populatedOrder,
+      message: "Order created successfully",
+    });
+  } catch (e) {
+    console.error("Checkout Error:", e);
+    return res.status(500).json({
+      error: e.message,
+      stack: process.env.NODE_ENV === "development" ? e.stack : undefined,
+    });
   }
 };

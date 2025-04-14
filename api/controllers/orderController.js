@@ -70,13 +70,3 @@ module.exports.cancelClientOrder = (req, res) => {
     return handleErrors(e, res);
   }
 };
-// CONVERT THE CART TO AN ORDER
-module.exports.checkout = (req, res) => {
-  try {
-    res.json({
-      success: true,
-    });
-  } catch (e) {
-    return handleErrors(e, res);
-  }
-};

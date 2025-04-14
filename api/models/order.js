@@ -8,9 +8,21 @@ const orderSchema = mongoose.Schema(
     },
     items: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-        quantity: Number,
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+        price: {
+          type: Number,
+          required: true,
+        },
+        size: String, // Optional field
       },
     ],
     total: Number,
@@ -32,3 +44,4 @@ const orderSchema = mongoose.Schema(
     },
   }
 );
+module.exports = mongoose.model("Order", orderSchema);

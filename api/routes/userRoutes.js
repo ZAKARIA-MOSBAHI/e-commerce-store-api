@@ -7,7 +7,7 @@ const { authenticate, authorizeAdmin } = require("../middlewares/auth");
 // CREATE A USER (only clients) , admin accounts are created in the database manually
 router.post("/signup", userController.signup);
 // LOGIN FOR BOTH CLIENTS AND ADMIN
-router.post("/login", loginLimiter, userController.login);
+router.post("/login",  userController.login);
 
 // GET USERS (only admin) ,
 router.get("/", authenticate, authorizeAdmin, userController.getUsers);
