@@ -39,9 +39,9 @@ const upload = multer({
   fileFilter: fileFilters,
 });
 
-router.get("/", authenticate, ProductController.getAllProducts);
+router.get("/", ProductController.getAllProducts);
 // GET PRODUCT BY ID
-router.get("/:id", authenticate, ProductController.getProductById);
+router.get("/:id", ProductController.getProductById);
 // ADD A PRODUCT
 router.post(
   "/",

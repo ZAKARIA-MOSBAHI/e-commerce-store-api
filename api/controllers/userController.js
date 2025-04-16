@@ -3,6 +3,10 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const handleErrors = require("../../utils/errorHandler");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../../utils/utils");
 
 module.exports.signup = async (req, res) => {
   // next add confirm password field
@@ -19,14 +23,16 @@ module.exports.signup = async (req, res) => {
 
     // Using await with bcrypt.hash to stay in the try/catch scope
     const hash = await bcrypt.hash(password, 12);
+    const userId = new mongoose.Types.ObjectId();
 
     const userToAdd = new User({
-      _id: new mongoose.Types.ObjectId(),
+      _id: userId,
       email,
       password: hash,
       name,
       phone,
       currencyPreference,
+      role: "user",
     });
 
     const result = await userToAdd.save();
@@ -55,35 +61,22 @@ module.exports.login = async (req, res) => {
         message: "Email or password is incorrect",
       });
     }
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        role: user.role,
-      },
-      "JWT_SECRET",
-      {
-        expiresIn: "1h",
-      }
-    );
-    const result = await User.findByIdAndUpdate(
-      { _id: user._id },
-      {
-        $set: {
-          lastLogin: Date.now(),
-          // next add refresh token
-        },
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id, user.role);
+    user.refreshToken = refreshToken;
+    user.lastLogin = Date.now();
+    await user.save();
+    const updatedUser = await User.findById(user._id)
+      .populate("address")
+      .select("-password -refreshToken -__v -lastLogin -createdAt -updatedAt");
+
     return res.status(200).json({
       success: true,
-      userName: result.name,
-      role: result.role,
+
+      user: updatedUser,
       message: "User logged in successfully",
-      token,
+      accessToken,
+      refreshToken,
     });
   } catch (e) {
     return handleErrors(e, res);
@@ -115,7 +108,7 @@ module.exports.getUserById = async (req, res) => {
 // get the logging user account
 module.exports.getClientUser = async (req, res) => {
   try {
-    console.log(req.user);
+    console.log("user", req.user);
     const { userId } = req.user; // this is passed by the auth middleware
     const user = await User.findById(userId)
       .select("-password -role")

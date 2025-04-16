@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 // importing morgan middleware : morgan is a logger middleware
 const morgan = require("morgan");
+const cors = require("cors");
 // importing body-parser middleware : body-parser is a middleware to parse the body of the request
 // because the request body is harder to read
 const bodyParser = require("body-parser");
@@ -15,6 +16,7 @@ const ordersRouter = require("./api/routes/orderRoutes");
 const categoriesRouter = require("./api/routes/categoriyRoutes");
 const subcategoriesRouter = require("./api/routes/subcategoryRoutes");
 const addressRouter = require("./api/routes/addressRoutes");
+const refreshTokenRouter = require("./api/routes/refreshTokenRoute");
 //DATABASE CONNECTION
 mongoose
   .connect("mongodb://localhost:27017/store", {
@@ -28,6 +30,14 @@ mongoose
     console.error("Error connecting to MongoDB:", error);
   });
 // MIDDLEWARES
+// Enable CORS with custom configuration
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Allow frontend's origin
+    methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
+    allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"], // Allow specific headers (including your custom header)
+  })
+);
 app.use(morgan("dev"));
 app.use(express.static("uploads")); // this middleware make the uploads file accessible for public (read only)
 app.use(bodyParser.json());
@@ -54,6 +64,8 @@ app.use("/orders", ordersRouter);
 app.use("/categories", categoriesRouter);
 app.use("/subcategories", subcategoriesRouter);
 app.use("/address", addressRouter);
+app.use("/refresh-token", refreshTokenRouter);
+
 // ERROR HANDLERS
 app.use((req, res, next) => {
   // this handler will be called when no route is matched

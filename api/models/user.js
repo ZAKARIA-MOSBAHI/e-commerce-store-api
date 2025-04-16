@@ -48,6 +48,10 @@ const userSchema = mongoose.Schema(
       enum: ["USD", "EUR", "GBP"], // Add your supported currencies
       default: "USD",
     },
+    refreshToken: {
+      type: String,
+      default: null,
+    },
     lastLogin: {
       type: Date,
       default: Date.now,
