@@ -40,6 +40,8 @@ module.exports.getProductById = async (req, res) => {
 module.exports.addProduct = async (req, res) => {
   try {
     const { name, price, description, categoryId, stock, sizes } = req.body;
+    console.log(req.files);
+    console.log(req.body);
     if (!req.files?.mainImage?.[0]) {
       return res.status(400).json({
         success: false,

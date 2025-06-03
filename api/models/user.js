@@ -32,6 +32,11 @@ const userSchema = mongoose.Schema(
       },
       unique: true,
     },
+    // status: {
+    //   type: String,
+    //   enum: ["active", "suspended", "banned", "pending"],
+    //   required: true,
+    // },
     address: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Address",

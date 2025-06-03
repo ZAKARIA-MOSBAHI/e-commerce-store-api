@@ -23,7 +23,7 @@ const generateRefreshToken = (userId, userRole) => {
       role: userRole,
     },
     process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: "30d" }
+    { expiresIn: "7d" }
   );
 
   return accessToken;

@@ -7,14 +7,15 @@ const {
 } = require("../../utils/utils");
 router.get("/", async (req, res) => {
   const refreshToken = req.headers["x-refresh-token"];
+  console.log(refreshToken);
   if (!refreshToken) {
-    console.log("llll");
     return res.status(401).json({ message: "Unauthorized" });
   }
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
     console.log("decoded", decoded);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.userId);
+    console.log("user", user);
     if (!user) {
       console.log("dfdf");
       return res.status(401).json({ message: "Unauthorized" });

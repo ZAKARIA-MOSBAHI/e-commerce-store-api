@@ -31,6 +31,7 @@ module.exports.signup = async (req, res) => {
       password: hash,
       name,
       phone,
+
       currencyPreference,
       role: "user",
     });
@@ -111,7 +112,7 @@ module.exports.getClientUser = async (req, res) => {
     console.log("user", req.user);
     const { userId } = req.user; // this is passed by the auth middleware
     const user = await User.findById(userId)
-      .select("-password -role")
+      .select("-password")
       .populate("address");
     return res.status(200).json({ user });
   } catch (e) {

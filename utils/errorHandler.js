@@ -5,6 +5,7 @@ const handleErrors = (err, res) => {
   if (err.name === "MongoServerError" && err.code === 11000) {
     const duplicateField = Object.keys(err.keyValue)[0]; // Get the conflicting field
     return res.status(409).json({
+      success: false,
       message: `${duplicateField} already exists`,
       duplicateField: duplicateField,
     });
@@ -13,6 +14,8 @@ const handleErrors = (err, res) => {
   if (err.name === "ValidationError") {
     //collects all schema validation failures during a save operation.
     return res.status(400).json({
+      success: false,
+      name: "ValidationError",
       messages: Object.values(err.errors).map((e) => ({
         field: e.path,
         message: e.message,
@@ -23,6 +26,8 @@ const handleErrors = (err, res) => {
   // Invalid ID format
   if (err.name === "CastError") {
     return res.status(400).json({
+      success: false,
+
       message: `Invalid ${err.path}: ${err.value}`,
     });
   }
@@ -31,6 +36,8 @@ const handleErrors = (err, res) => {
   if (err.code === 11000) {
     const field = Object.keys(err.keyPattern)[0];
     return res.status(409).json({
+      success: false,
+
       message: `${field} must be unique`,
     });
   }

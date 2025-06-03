@@ -17,6 +17,7 @@ const categoriesRouter = require("./api/routes/categoriyRoutes");
 const subcategoriesRouter = require("./api/routes/subcategoryRoutes");
 const addressRouter = require("./api/routes/addressRoutes");
 const refreshTokenRouter = require("./api/routes/refreshTokenRoute");
+const searchRoute = require("./api/routes/searchRoute");
 //DATABASE CONNECTION
 mongoose
   .connect("mongodb://localhost:27017/store", {
@@ -33,7 +34,7 @@ mongoose
 // Enable CORS with custom configuration
 app.use(
   cors({
-    origin: "http://localhost:5173", // Allow frontend's origin
+    origin: "*", // Allow frontend's origin
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
     allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"], // Allow specific headers (including your custom header)
   })
@@ -65,6 +66,7 @@ app.use("/categories", categoriesRouter);
 app.use("/subcategories", subcategoriesRouter);
 app.use("/address", addressRouter);
 app.use("/refresh-token", refreshTokenRouter);
+app.use("/search", searchRoute);
 
 // ERROR HANDLERS
 app.use((req, res, next) => {
