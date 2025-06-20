@@ -1,12 +1,10 @@
 const mongoose = require("mongoose");
 const userSchema = mongoose.Schema(
   {
-    _id: mongoose.Schema.Types.ObjectId,
     name: {
       type: String,
       required: [true, "Name is required"],
       trim: true,
-      unique: true,
     },
 
     email: {
@@ -16,7 +14,6 @@ const userSchema = mongoose.Schema(
       trim: true,
       match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, "Please enter a valid email"],
     },
-
     password: {
       type: String,
       required: [true, "Password is required"],
@@ -32,12 +29,12 @@ const userSchema = mongoose.Schema(
       },
       unique: true,
     },
-    // status: {
-    //   type: String,
-    //   enum: ["active", "suspended", "banned", "pending"],
-    //   required: true,
-    // },
-    address: {
+    status: {
+      type: String,
+      enum: ["active", "suspended", "inactive"],
+      required: true,
+    },
+    addressId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Address",
       default: null,
@@ -64,11 +61,15 @@ const userSchema = mongoose.Schema(
     // the discounts that are used by the user
     usedDiscounts: [
       {
-        discount: {
+        discountId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Discount",
         },
-        usedAt: Date,
+        usedAt: {
+          type: Date,
+          required: true,
+          default: Date.now,
+        },
       },
     ],
     // the discounts that are user specific

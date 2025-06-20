@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const orderSchema = mongoose.Schema(
   {
-    _id: mongoose.Schema.Types.ObjectId,
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -22,16 +21,27 @@ const orderSchema = mongoose.Schema(
           type: Number,
           required: true,
         },
-        size: String, // Optional field
+        size: {
+          type: String,
+          required: true,
+        }, // Optional field
       },
     ],
-    total: Number,
+    total: { type: Number, required: true, min: 0 },
     shippingAddress: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Address",
     },
-    status: String,
-    paymentMethod: String,
+    status: {
+      type: String,
+      enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
+      default: "Pending",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["CashOnDelivery", "CreditCard", "PayPal"],
+      required: true,
+    },
   },
   {
     timestamps: true,

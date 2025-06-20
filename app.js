@@ -18,6 +18,7 @@ const subcategoriesRouter = require("./api/routes/subcategoryRoutes");
 const addressRouter = require("./api/routes/addressRoutes");
 const refreshTokenRouter = require("./api/routes/refreshTokenRoute");
 const searchRoute = require("./api/routes/searchRoute");
+const favoriteRoutes = require("./api/routes/favoriteRoutes");
 //DATABASE CONNECTION
 mongoose
   .connect("mongodb://localhost:27017/store", {
@@ -67,6 +68,7 @@ app.use("/subcategories", subcategoriesRouter);
 app.use("/address", addressRouter);
 app.use("/refresh-token", refreshTokenRouter);
 app.use("/search", searchRoute);
+app.use("/favorites", favoriteRoutes);
 
 // ERROR HANDLERS
 app.use((req, res, next) => {

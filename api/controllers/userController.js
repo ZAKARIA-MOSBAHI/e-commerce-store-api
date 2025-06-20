@@ -68,7 +68,7 @@ module.exports.login = async (req, res) => {
     user.lastLogin = Date.now();
     await user.save();
     const updatedUser = await User.findById(user._id)
-      .populate("address")
+      .populate("addressId")
       .select("-password -refreshToken -__v -lastLogin -createdAt -updatedAt");
 
     return res.status(200).json({

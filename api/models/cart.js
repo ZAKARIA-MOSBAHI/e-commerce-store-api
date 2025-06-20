@@ -33,6 +33,11 @@ const cartSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    status: {
+      type: String,
+      enum: ["active", "abandoned"],
+      default: "active",
+    },
     appliedDiscounts: [
       {
         code: String,
