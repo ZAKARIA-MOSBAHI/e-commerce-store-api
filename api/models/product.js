@@ -34,6 +34,11 @@ const productSchema = new mongoose.Schema(
       ref: "Category", // Name of the referenced model
       required: [true, "Category ID is required"], // Category ID is required
     },
+    gender: {
+      type: String,
+      enum: ["men", "women", "kids"],
+      required: [true, "Gender is required"],
+    },
     badge: {
       type: String,
     },

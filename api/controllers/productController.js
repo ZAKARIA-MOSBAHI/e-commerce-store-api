@@ -39,7 +39,8 @@ module.exports.getProductById = async (req, res) => {
 // CREATE PRODUCT
 module.exports.addProduct = async (req, res) => {
   try {
-    const { name, price, description, categoryId, stock } = req.body;
+    const { name, price, description, categoryId, stock, gender, badge } =
+      req.body;
     const sizes =
       typeof req.body.sizes === "string"
         ? JSON.parse(req.body.sizes)
@@ -64,6 +65,8 @@ module.exports.addProduct = async (req, res) => {
       stock,
       categoryId,
       sizes,
+      gender,
+      badge,
       mainImage: {
         url: `${process.env.BASE_URL}/${mainImage.filename}`,
         altText: removeFileExtension(mainImage.originalname),

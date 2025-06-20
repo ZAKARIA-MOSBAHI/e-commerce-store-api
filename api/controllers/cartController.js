@@ -8,6 +8,8 @@ const Product = require("../models/product");
 const Discount = require("../models/discount");
 const User = require("../models/user");
 const Order = require("../models/order");
+const { verifyStockQuantity } = require("../../utils/verifyStockQuantity");
+const { abortWithError } = require("../../utils/utils");
 // GET THE CLIENT'S CART
 module.exports.getClientCart = async (req, res) => {
   try {
@@ -32,179 +34,162 @@ module.exports.getClientCart = async (req, res) => {
 };
 // ADD ITEM TO THE CLIENT'S CART
 module.exports.addItemsToClientCart = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { userId } = req.user;
     const { productId, itemSize } = req.body;
     const productIdObj = new mongoose.Types.ObjectId(productId);
+    // Step 1: Validate product
+    const product = await Product.findById(productIdObj).session(session);
 
-    // Validate product exists
-    const product = await Product.findById(productIdObj);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
+      return abortWithError(res, session, 404, "Product not found");
+    }
+
+    // Step 2: Validate size exists in Map (case-sensitive match)
+    if (!product.sizes.has(itemSize)) {
+      return abortWithError(res, session, 400, "Size not available", {
+        availableSizes: Array.from(product.sizes.keys()),
       });
     }
 
-    // Validate size availability
-    const sizeAvailable = product.sizes.find((size) => {
-      console.log("size is : " + size);
-      return size === itemSize;
-    });
-    if (!sizeAvailable) {
-      return res.status(400).json({
-        success: false,
-        message: "Size not available",
-        availableSizes: product.sizes,
+    // Step 3: Fetch or create user's cart
+    let cart = await Cart.findOne({ userId }).session(session);
+    if (!cart) {
+      cart = new Cart({
+        userId,
+        items: [],
+        total: 0,
+        discountTotal: 0,
+        appliedDiscounts: [],
+        status: "active",
       });
     }
+    // Step 4: Check if item with same size already exists
 
-    let updatedCart;
-
-    // Check if item exists
-    const existingItem = await Cart.findOne({
-      userId,
-      "items.productId": productIdObj,
-      "items.itemSize": itemSize,
-    });
-
-    if (existingItem) {
-      // Increment quantity for existing item
-      updatedCart = await Cart.findOneAndUpdate(
-        {
-          userId,
-          "items.productId": productIdObj,
-          "items.itemSize": itemSize,
-        },
-        {
-          $inc: { "items.$.quantity": 1 },
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      ).populate({ path: "items.productId", select: "name price mainImage" });
+    if (verifyStockQuantity(product, itemSize)) {
+      const existingItem = cart.items.find(
+        (item) =>
+          item.productId.toString() === productIdObj.toString() &&
+          item.itemSize === itemSize
+      );
+      if (existingItem) {
+        // checking if there available stock for the item
+        existingItem.quantity += 1;
+      } else {
+        cart.items.push({
+          productId: productIdObj,
+          itemSize,
+          quantity: 1,
+          price: product.price,
+        });
+      }
     } else {
-      // Add new item to cart
-      updatedCart = await Cart.findOneAndUpdate(
-        { userId },
-        {
-          $push: {
-            items: {
-              productId: productIdObj,
-              itemSize: itemSize,
-              quantity: 1,
-              price: product.price,
-            },
-          },
-        },
-        {
-          new: true,
-          upsert: true,
-          runValidators: true,
-        }
-      ).populate({ path: "items.productId", select: "name  price mainImage" });
+      // If no stock available for this size, abort transaction
+      return abortWithError(
+        res,
+        session,
+        400,
+        "No stock available for this size"
+      );
     }
-
-    // Recalculate total after update
-    const total = updatedCart.items.reduce(
-      (sum, item) => sum + item.quantity * item.productId.price,
-      0
-    );
-    // Set the new total
-    updatedCart = await Cart.findOneAndUpdate(
-      { userId },
-      { $set: { total } },
-      { new: true }
-    ).populate("items.productId", "name price  mainImage");
-
+    // decrementing the stock of the item
+    product.sizes.set(itemSize, product.sizes.get(itemSize) - 1);
+    await product.save({ session });
+    await cart.save({ session });
+    await session.commitTransaction();
     return res.status(200).json({
       success: true,
-      cart: updatedCart.toObject(),
+      cart: cart.toObject(),
     });
   } catch (e) {
+    await session.abortTransaction();
     return handleErrors(e, res);
+  } finally {
+    session.endSession();
   }
 };
 // REMOVE ITEM FROM THE CLIENT'S CART
 module.exports.deleteItemFromClientCart = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { userId } = req.user;
     const { productId, itemSize } = req.body;
+
     const productIdObj = new mongoose.Types.ObjectId(productId);
 
-    // Find item quantity
-    const cart = await Cart.findOne({ userId });
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: "Cart not found",
-      });
+    // Step 1: Find product
+    const product = await Product.findById(productIdObj).session(session);
+    if (!product) {
+      await session.abortTransaction();
+      session.endSession();
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
     }
 
-    const item = cart.items.find(
-      (i) => i.productId.equals(productIdObj) && i.itemSize === itemSize
+    // Step 2: Find the user's cart
+    const cart = await Cart.findOne({ userId }).session(session);
+    if (!cart || cart.items.length === 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res
+        .status(404)
+        .json({ success: false, message: "Cart is empty or not found" });
+    }
+
+    // Step 3: Find the item to delete
+    const itemIndex = cart.items.findIndex(
+      (item) =>
+        item.productId.toString() === productIdObj.toString() &&
+        item.itemSize === itemSize
     );
 
-    if (!item) {
+    if (itemIndex === -1) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({
         success: false,
         message: "Item not found in cart",
       });
     }
 
-    let updatedCart;
+    const item = cart.items[itemIndex];
 
-    if (item.quantity > 1) {
-      // Decrement quantity
-      updatedCart = await Cart.findOneAndUpdate(
-        {
-          userId,
-          "items.productId": productIdObj,
-          "items.itemSize": itemSize,
-        },
-        {
-          $inc: { "items.$.quantity": -1 },
-        },
-        { new: true }
-      ).populate({ path: "items.productId", select: "name price mainImage" });
-    } else {
-      // Remove item completely
-      updatedCart = await Cart.findOneAndUpdate(
-        { userId },
-        {
-          $pull: {
-            items: {
-              productId: productIdObj,
-              itemSize: itemSize,
-            },
-          },
-        },
-        { new: true }
-      ).populate({ path: "items.productId", select: "name price mainImage" });
-    }
+    // Step 4: Restore stock in the product
+    const currentStock = product.sizes.get(itemSize) || 0;
+    product.sizes.set(itemSize, currentStock + item.quantity);
+    await product.save({ session });
 
-    // Recalculate total after update
-    const total = updatedCart.items.reduce(
-      (sum, item) => sum + item.quantity * item.productId.price,
+    // Step 5: Remove item from cart
+    cart.items.splice(itemIndex, 1);
+
+    // Step 6: Recalculate cart total
+    cart.total = cart.items.reduce(
+      (sum, item) => sum + item.quantity * item.price,
       0
     );
 
-    // Set the new total
-    updatedCart = await Cart.findOneAndUpdate(
-      { userId },
-      { $set: { total } },
-      { new: true }
-    ).populate({ path: "items.productId", select: "name price mainImage" });
+    await cart.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     return res.status(200).json({
       success: true,
-      cart: updatedCart.toObject(),
+      cart: cart.toObject(),
     });
   } catch (e) {
+    await session.abortTransaction();
+    session.endSession();
     return handleErrors(e, res);
   }
 };
+module.exports.updateItemQuantity = async (req, res) => {};
 // CLEAR CLIENT'S CART
 module.exports.clearClientCart = async (req, res) => {
   try {

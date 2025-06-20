@@ -14,6 +14,11 @@ const cartSchema = new mongoose.Schema(
           ref: "Product",
           required: true, // Added required constraint
         },
+        price: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
         quantity: {
           type: Number,
           min: 1,
@@ -28,6 +33,8 @@ const cartSchema = new mongoose.Schema(
     total: {
       type: Number,
       default: 0,
+      required: true,
+      min: 0,
     },
     discountTotal: {
       type: Number,
@@ -62,5 +69,18 @@ const cartSchema = new mongoose.Schema(
     },
   }
 );
+
+cartSchema.pre("save", function (next) {
+  if (!this.items || this.items.length === 0) {
+    this.total = 0;
+  } else {
+    this.total = this.items.reduce((sum, item) => {
+      const quantity = Number(item.quantity) || 0;
+      const price = Number(item.price) || 0;
+      return sum + quantity * price;
+    }, 0);
+  }
+  next();
+});
 
 module.exports = mongoose.model("Cart", cartSchema);

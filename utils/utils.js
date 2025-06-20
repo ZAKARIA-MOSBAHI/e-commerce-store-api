@@ -28,9 +28,15 @@ const generateRefreshToken = (userId, userRole) => {
 
   return accessToken;
 };
+const abortWithError = async (res, session, status, message, extra = {}) => {
+  await session.abortTransaction();
+  session.endSession();
+  return res.status(status).json({ success: false, message, ...extra });
+};
 
 module.exports = {
   removeFileExtension,
   generateAccessToken,
   generateRefreshToken,
+  abortWithError,
 };
