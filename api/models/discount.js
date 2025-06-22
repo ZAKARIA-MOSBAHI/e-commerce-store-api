@@ -13,30 +13,16 @@ const discountSchema = new mongoose.Schema({
     required: true,
   },
   value: Number,
-  maxDiscount: Number,
   minCartValue: Number,
-  validFrom: Date,
-  validUntil: Date,
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
   maxUsesPerUser: Number,
   usedCount: {
     type: Number,
     default: 0,
   },
-  // if the discount is for a specific product
-  applicableProducts: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-    },
-  ],
-  // if the discount is for a specific category
-  applicableCategories: [String],
-  //if the discount is for a specific user
-  userSpecific: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-  singleUse: Boolean,
 });
 
 module.exports = mongoose.model("Discount", discountSchema);

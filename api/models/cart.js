@@ -36,9 +36,10 @@ const cartSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    discountTotal: {
+    totalAfterDiscount: {
       type: Number,
       default: 0,
+      min: 0,
     },
     status: {
       type: String,
@@ -52,7 +53,6 @@ const cartSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "Discount",
         },
-        amount: Number,
       },
     ],
   },
@@ -80,6 +80,7 @@ cartSchema.pre("save", function (next) {
       return sum + quantity * price;
     }, 0);
   }
+
   next();
 });
 

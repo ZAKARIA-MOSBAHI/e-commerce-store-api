@@ -10,6 +10,7 @@ const User = require("../models/user");
 const Order = require("../models/order");
 const { verifyStockQuantity } = require("../../utils/verifyStockQuantity");
 const { abortWithError } = require("../../utils/utils");
+const { updateCartTotalAfterDiscount } = require("../../utils/cartUtils");
 // GET THE CLIENT'S CART
 module.exports.getClientCart = async (req, res) => {
   try {
@@ -86,6 +87,7 @@ module.exports.addItemsToClientCart = async (req, res) => {
           price: product.price,
         });
       }
+      // updating the cart discount total if a discount is applied
     } else {
       // If no stock available for this size, abort transaction
       return abortWithError(
@@ -168,12 +170,6 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     // Step 5: Remove item from cart
     cart.items.splice(itemIndex, 1);
 
-    // Step 6: Recalculate cart total
-    cart.total = cart.items.reduce(
-      (sum, item) => sum + item.quantity * item.price,
-      0
-    );
-
     await cart.save({ session });
 
     await session.commitTransaction();
@@ -189,7 +185,102 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     return handleErrors(e, res);
   }
 };
-module.exports.updateItemQuantity = async (req, res) => {};
+// increment or decrement the quantity of an item in the cart
+module.exports.updateItemQuantity = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { userId } = req.user;
+    const { productId, itemSize, operation } = req.body;
+
+    if (!["increment", "decrement"].includes(operation)) {
+      return abortWithError(res, session, 400, "Invalid operation");
+    }
+
+    const productIdObj = new mongoose.Types.ObjectId(productId);
+
+    // Validate product exists
+    const product = await Product.findById(productIdObj).session(session);
+    if (!product) {
+      return abortWithError(res, session, 404, "Product not found");
+    }
+
+    // Validate size exists
+    if (!product.sizes.has(itemSize)) {
+      return abortWithError(res, session, 400, "Size not available", {
+        availableSizes: Array.from(product.sizes.keys()),
+      });
+    }
+
+    // Get user's cart
+    const cart = await Cart.findOne({ userId }).session(session);
+    if (!cart) {
+      return abortWithError(res, session, 404, "Cart not found");
+    }
+
+    const cartItem = cart.items.find(
+      (item) =>
+        item.productId.toString() === productIdObj.toString() &&
+        item.itemSize === itemSize
+    );
+
+    if (!cartItem) {
+      return abortWithError(res, session, 404, "Item not found in cart");
+    }
+
+    // Perform update based on operation
+    if (operation === "increment") {
+      const availableStock = product.sizes.get(itemSize);
+      if (availableStock < 1) {
+        return abortWithError(
+          res,
+          session,
+          400,
+          `Not enough stock available. Only ${availableStock} left`
+        );
+      }
+      cartItem.quantity += 1;
+      product.sizes.set(itemSize, availableStock - 1);
+    } else if (operation === "decrement") {
+      if (cartItem.quantity < 1) {
+        return abortWithError(
+          res,
+          session,
+          400,
+          `Cannot decrement, item quantity is already zero`
+        );
+      }
+      cartItem.quantity -= 1;
+      product.sizes.set(itemSize, product.sizes.get(itemSize) + 1);
+
+      // Optional: remove item if quantity hits 0
+      if (cartItem.quantity === 0) {
+        cart.items = cart.items.filter(
+          (item) =>
+            !(
+              item.productId.toString() === productIdObj.toString() &&
+              item.itemSize === itemSize
+            )
+        );
+      }
+    }
+
+    await product.save({ session });
+    await cart.save({ session });
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      success: true,
+      cart: cart.toObject(),
+    });
+  } catch (e) {
+    await session.abortTransaction();
+    return handleErrors(e, res);
+  } finally {
+    session.endSession();
+  }
+};
 // CLEAR CLIENT'S CART
 module.exports.clearClientCart = async (req, res) => {
   try {
@@ -197,91 +288,145 @@ module.exports.clearClientCart = async (req, res) => {
 
     const clearedCart = await Cart.findOneAndUpdate(
       { userId },
-      [
-        { $set: { items: [] } },
-        { $set: { total: 0 } },
-        { $set: { discountTotal: 0 } },
-        { $set: { appliedDiscounts: [] } },
-      ],
+      {
+        $set: {
+          items: [],
+          total: 0,
+          discountTotal: 0,
+          appliedDiscounts: [],
+        },
+      },
       { new: true }
     );
 
+    if (!clearedCart) {
+      return res.status(404).json({
+        success: false,
+        message: "Cart not found for this user",
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      cart: {
-        _id: clearedCart._id,
-        userId: clearedCart.userId,
-        items: [],
-        total: 0,
-        createdAt: clearedCart.createdAt,
-        updatedAt: clearedCart.updatedAt,
-        appliedDiscounts: [],
-        discountTotal: 0,
-      },
+      cart: clearedCart.toObject(),
     });
   } catch (e) {
     return handleErrors(e, res);
   }
 };
+
 // APPLY DISCOUNT TO THE CLIENT'S CART
 module.exports.applyDiscount = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { userId } = req.user;
-    const discount = req.validDiscount;
-    const userCart = await Cart.findOne({ userId });
+    const { discountCode } = req.body;
 
+    if (!discountCode) {
+      return abortWithError(res, session, 400, "discountCode is required");
+    }
+
+    const discount = await Discount.findOne({
+      code: discountCode,
+      isActive: true,
+    }).session(session);
+    if (!discount) {
+      return abortWithError(
+        res,
+        session,
+        404,
+        "Discount code not found or inactive"
+      );
+    }
+
+    const userCart = await Cart.findOne({ userId }).session(session);
+    if (!userCart) {
+      return abortWithError(res, session, 404, "Cart not found");
+    }
+
+    if (discount.minCartValue && userCart.total < discount.minCartValue) {
+      return abortWithError(
+        res,
+        session,
+        400,
+        `Cart total must be at least ${discount.minCartValue} to use this discount`
+      );
+    }
+
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      return abortWithError(res, session, 404, "User not found");
+    }
+
+    const userUsageCount = user.usedDiscounts
+      ? user.usedDiscounts.filter((d) => {
+          return d.discountId.toString() === discount._id.toString();
+        }).length
+      : 0;
+
+    if (discount.maxUsesPerUser && userUsageCount >= discount.maxUsesPerUser) {
+      return abortWithError(
+        res,
+        session,
+        400,
+        "You have exceeded the usage limit for this discount"
+      );
+    }
+
+    // Calculate discount amount
     let discountAmount = 0;
     switch (discount.type) {
       case "percentage":
         discountAmount = userCart.total * (discount.value / 100);
-        if (discount.maxDiscount) {
-          discountAmount = Math.min(discountAmount, discount.maxDiscount);
-        }
         break;
-
       case "fixed":
         discountAmount = discount.value;
         break;
-
-      case "free_shipping":
-        console.log("free shipping");
-        break;
+      default:
+        discountAmount = 0;
     }
-    console.log("discount amount is : ", discountAmount);
-    const updatedCart = await Cart.findByIdAndUpdate(
-      userCart._id,
-      {
-        $push: {
-          appliedDiscounts: {
-            code: discount.code,
-            discountId: discount._id,
-            amount: discountAmount,
-          },
-        },
-        $inc: { discountTotal: userCart.total - discountAmount },
-      },
-      { new: true }
+
+    // Set totalAfterDiscount = total - discountAmount but not less than 0
+    userCart.totalAfterDiscount = Math.max(userCart.total - discountAmount, 0);
+
+    // Add discount info to appliedDiscounts
+    userCart.appliedDiscounts.push({
+      code: discount.code,
+      discountId: discount._id,
+      amount: discountAmount,
+    });
+
+    await userCart.save({ session });
+
+    user.usedDiscounts.push({
+      discountId: discount._id,
+      usedAt: new Date(),
+    });
+    await user.save({ session });
+
+    await Discount.findByIdAndUpdate(
+      discount._id,
+      { $inc: { usedCount: 1 } },
+      { session }
     );
-    // Update user's used discounts
-    await User.findByIdAndUpdate(userId, {
-      $push: {
-        usedDiscounts: {
-          discount: discount._id,
-          usedAt: new Date(),
-        },
-      },
-    });
 
-    // Update discount usage count
-    await Discount.findByIdAndUpdate(discount._id, {
-      $inc: { usedCount: 1 },
-    });
+    await session.commitTransaction();
 
-    res.json(updatedCart);
+    res.json({
+      success: true,
+      cart: userCart.toObject(),
+    });
   } catch (e) {
+    await session.abortTransaction();
+
     return handleErrors(e, res);
+  } finally {
+    session.endSession();
   }
 };
+
 // REMOVE DISCOUNT FROM CART
 module.exports.removeDiscount = async (req, res) => {
   try {

@@ -8,6 +8,8 @@ router.get("/me", authenticate, cartController.getClientCart);
 
 // ADD AN ITEM TO THE CLIENT'S CART
 router.post("/me/items", authenticate, cartController.addItemsToClientCart);
+// Update the items quantity in the client's cart
+router.put("/me/items/update", authenticate, cartController.updateItemQuantity);
 
 // DELETE AN ITEM FROM THE CLIENT'S CART
 router.delete(
@@ -21,7 +23,7 @@ router.delete("/me", authenticate, cartController.clearClientCart);
 router.post(
   "/apply-discount",
   authenticate,
-  validateDiscount,
+
   cartController.applyDiscount
 );
 // REMOVE A DISCOUNT FROM THE CART
