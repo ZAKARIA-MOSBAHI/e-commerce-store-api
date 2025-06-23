@@ -35,29 +35,31 @@ module.exports.getClientCart = async (req, res) => {
 };
 // ADD ITEM TO THE CLIENT'S CART
 module.exports.addItemsToClientCart = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { userId } = req.user;
     const { productId, itemSize } = req.body;
     const productIdObj = new mongoose.Types.ObjectId(productId);
     // Step 1: Validate product
-    const product = await Product.findById(productIdObj).session(session);
+    const product = await Product.findById(productIdObj);
 
     if (!product) {
-      return abortWithError(res, session, 404, "Product not found");
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
     }
 
     // Step 2: Validate size exists in Map (case-sensitive match)
     if (!product.sizes.has(itemSize)) {
-      return abortWithError(res, session, 400, "Size not available", {
+      return res.status(400).json({
+        success: false,
+        message: "Size not available",
         availableSizes: Array.from(product.sizes.keys()),
       });
     }
 
     // Step 3: Fetch or create user's cart
-    let cart = await Cart.findOne({ userId }).session(session);
+    let cart = await Cart.findOne({ userId });
     if (!cart) {
       cart = new Cart({
         userId,
@@ -90,34 +92,25 @@ module.exports.addItemsToClientCart = async (req, res) => {
       // updating the cart discount total if a discount is applied
     } else {
       // If no stock available for this size, abort transaction
-      return abortWithError(
-        res,
-        session,
-        400,
-        "No stock available for this size"
-      );
+      return res.status(400).json({
+        success: false,
+        message: `Not enough stock available for size ${itemSize}. Only ${
+          product.sizes.get(itemSize) || 0
+        } left`,
+      });
     }
-    // decrementing the stock of the item
-    product.sizes.set(itemSize, product.sizes.get(itemSize) - 1);
-    await product.save({ session });
-    await cart.save({ session });
-    await session.commitTransaction();
+
+    await cart.save();
     return res.status(200).json({
       success: true,
       cart: cart.toObject(),
     });
   } catch (e) {
-    await session.abortTransaction();
     return handleErrors(e, res);
-  } finally {
-    session.endSession();
   }
 };
 // REMOVE ITEM FROM THE CLIENT'S CART
 module.exports.deleteItemFromClientCart = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { userId } = req.user;
     const { productId, itemSize } = req.body;
@@ -125,20 +118,16 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     const productIdObj = new mongoose.Types.ObjectId(productId);
 
     // Step 1: Find product
-    const product = await Product.findById(productIdObj).session(session);
+    const product = await Product.findById(productIdObj);
     if (!product) {
-      await session.abortTransaction();
-      session.endSession();
       return res
         .status(404)
         .json({ success: false, message: "Product not found" });
     }
 
     // Step 2: Find the user's cart
-    const cart = await Cart.findOne({ userId }).session(session);
+    const cart = await Cart.findOne({ userId });
     if (!cart || cart.items.length === 0) {
-      await session.abortTransaction();
-      session.endSession();
       return res
         .status(404)
         .json({ success: false, message: "Cart is empty or not found" });
@@ -152,36 +141,22 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     );
 
     if (itemIndex === -1) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(404).json({
         success: false,
         message: "Item not found in cart",
       });
     }
 
-    const item = cart.items[itemIndex];
-
-    // Step 4: Restore stock in the product
-    const currentStock = product.sizes.get(itemSize) || 0;
-    product.sizes.set(itemSize, currentStock + item.quantity);
-    await product.save({ session });
-
     // Step 5: Remove item from cart
     cart.items.splice(itemIndex, 1);
 
-    await cart.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
+    await cart.save();
 
     return res.status(200).json({
       success: true,
       cart: cart.toObject(),
     });
   } catch (e) {
-    await session.abortTransaction();
-    session.endSession();
     return handleErrors(e, res);
   }
 };
