@@ -269,6 +269,8 @@ module.exports.clearClientCart = async (req, res) => {
           total: 0,
           discountTotal: 0,
           appliedDiscounts: [],
+          totalAfterDiscount: 0,
+          status: "active",
         },
       },
       { new: true }
@@ -292,47 +294,55 @@ module.exports.clearClientCart = async (req, res) => {
 
 // APPLY DISCOUNT TO THE CLIENT'S CART
 module.exports.applyDiscount = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { userId } = req.user;
     const { discountCode } = req.body;
 
     if (!discountCode) {
-      return abortWithError(res, session, 400, "discountCode is required");
+      return res.status(400).json({
+        success: false,
+        message: "discountCode is required",
+      });
     }
 
     const discount = await Discount.findOne({
       code: discountCode,
       isActive: true,
-    }).session(session);
+    });
     if (!discount) {
-      return abortWithError(
-        res,
-        session,
-        404,
-        "Discount code not found or inactive"
-      );
+      return res.status(404).json({
+        success: false,
+        message: "Discount code not found or inactive",
+      });
     }
 
-    const userCart = await Cart.findOne({ userId }).session(session);
+    const userCart = await Cart.findOne({ userId });
     if (!userCart) {
-      return abortWithError(res, session, 404, "Cart not found");
+      return res.status(404).json({
+        success: false,
+        message: "Cart not found for this user",
+      });
+    }
+    if (userCart.appliedDiscounts.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A Discount already applied to this cart",
+      });
     }
 
     if (discount.minCartValue && userCart.total < discount.minCartValue) {
-      return abortWithError(
-        res,
-        session,
-        400,
-        `Cart total must be at least ${discount.minCartValue} to use this discount`
-      );
+      return res.status(400).json({
+        success: false,
+        message: `Cart total must be at least ${discount.minCartValue} to apply this discount`,
+      });
     }
 
-    const user = await User.findById(userId).session(session);
+    const user = await User.findById(userId);
     if (!user) {
-      return abortWithError(res, session, 404, "User not found");
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
     const userUsageCount = user.usedDiscounts
@@ -342,63 +352,39 @@ module.exports.applyDiscount = async (req, res) => {
       : 0;
 
     if (discount.maxUsesPerUser && userUsageCount >= discount.maxUsesPerUser) {
-      return abortWithError(
-        res,
-        session,
-        400,
-        "You have exceeded the usage limit for this discount"
-      );
+      return res.status(400).json({
+        success: false,
+        message: `You have already used this discount code ${discount.maxUsesPerUser} times`,
+      });
     }
-
-    // Calculate discount amount
-    let discountAmount = 0;
-    switch (discount.type) {
-      case "percentage":
-        discountAmount = userCart.total * (discount.value / 100);
-        break;
-      case "fixed":
-        discountAmount = discount.value;
-        break;
-      default:
-        discountAmount = 0;
-    }
-
-    // Set totalAfterDiscount = total - discountAmount but not less than 0
-    userCart.totalAfterDiscount = Math.max(userCart.total - discountAmount, 0);
 
     // Add discount info to appliedDiscounts
-    userCart.appliedDiscounts.push({
-      code: discount.code,
-      discountId: discount._id,
-      amount: discountAmount,
-    });
+    const discountInfo = {
+      type: discount.type,
+      value: discount.value,
+      discountId: discount._id.toString(),
+    };
+    userCart.appliedDiscounts.push(discountInfo);
 
-    await userCart.save({ session });
-
-    user.usedDiscounts.push({
-      discountId: discount._id,
-      usedAt: new Date(),
-    });
-    await user.save({ session });
-
-    await Discount.findByIdAndUpdate(
-      discount._id,
-      { $inc: { usedCount: 1 } },
-      { session }
-    );
-
-    await session.commitTransaction();
+    await userCart.save();
+    // THIS WILL BE ADDED WHEN THE USER CHECKOUT THE CART
+    // user.usedDiscounts.push({
+    //   discountId: discount._id,
+    //   usedAt: new Date(),
+    // });
+    // THIS ALSO WILL BE ADDED WHEN THE USER CHECKOUT THE CART
+    // await Discount.findByIdAndUpdate(
+    //   discount._id,
+    //   { $inc: { usedCount: 1 } },
+    //   { session }
+    // );
 
     res.json({
       success: true,
       cart: userCart.toObject(),
     });
   } catch (e) {
-    await session.abortTransaction();
-
     return handleErrors(e, res);
-  } finally {
-    session.endSession();
   }
 };
 

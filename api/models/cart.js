@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const cartSchema = new mongoose.Schema(
   {
     userId: {
@@ -48,12 +47,20 @@ const cartSchema = new mongoose.Schema(
     },
     appliedDiscounts: [
       {
-        code: String,
+        type: {
+          type: String,
+          enum: ["percentage", "fixed"],
+          required: true,
+        },
+        value: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
         discountId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Discount",
         },
-        amount: Number,
       },
     ],
   },
@@ -71,16 +78,40 @@ const cartSchema = new mongoose.Schema(
   }
 );
 
-cartSchema.pre("save", function (next) {
-  if (!this.items || this.items.length === 0) {
-    this.total = 0;
-  } else {
-    this.total = this.items.reduce((sum, item) => {
-      const quantity = Number(item.quantity) || 0;
-      const price = Number(item.price) || 0;
-      return sum + quantity * price;
-    }, 0);
+cartSchema.pre("save", async function (next) {
+  // 1. Calculate base total
+  this.total = this.items.reduce((sum, item) => {
+    const quantity = Number(item.quantity) || 0;
+    const price = Number(item.price) || 0;
+    return sum + quantity * price;
+  }, 0);
+
+  // 2. No discount applied
+  if (!this.appliedDiscounts || this.appliedDiscounts.length === 0) {
+    this.totalAfterDiscount = 0;
+    return next();
   }
+
+  // 3. Calculate discount
+  const appliedDiscount = this.appliedDiscounts[0];
+  let discountAmount = 0;
+
+  switch (appliedDiscount.type) {
+    case "percentage":
+      discountAmount = this.total * (appliedDiscount.value / 100);
+      break;
+    case "fixed":
+      discountAmount = appliedDiscount.value;
+      break;
+    case "free_shipping":
+      discountAmount = 0; // handle shipping cost separately if needed
+      break;
+    default:
+      discountAmount = 0;
+  }
+
+  // 4. Final discounted total, ensuring non-negative
+  this.totalAfterDiscount = Math.max(this.total - discountAmount, 0);
 
   next();
 });
