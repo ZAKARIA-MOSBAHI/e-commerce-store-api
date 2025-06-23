@@ -393,25 +393,63 @@ module.exports.removeDiscount = async (req, res) => {
   try {
     const { userId } = req.user;
     const { discountCode } = req.body;
-    const discount = await Discount.findOne({ code: discountCode });
-    const user = await User.findById(userId);
-    if (!discount) {
-      return res.status(404).json({ message: "Discount not found" });
+
+    if (!discountCode) {
+      return res.status(400).json({
+        success: false,
+        message: "discountCode is required to remove the discount",
+      });
     }
-    const updatedCart = await Cart.findOneAndUpdate(
-      { userId },
-      [{ $set: { appliedDiscounts: [] } }, { $set: { discountTotal: 0 } }],
-      { new: true, runValidators: true }
-    );
-    await User.findByIdAndUpdate(userId, { $set: { usedDiscounts: [] } });
-    await Discount.findByIdAndUpdate(discount._id, {
-      $inc: { usedCount: -1 },
+
+    const discount = await Discount.findOne({
+      code: discountCode,
     });
-    res.json(updatedCart);
+
+    if (!discount) {
+      return res.status(404).json({
+        success: false,
+        message: "Discount code not found",
+      });
+    }
+
+    const userCart = await Cart.findOne({ userId });
+    if (!userCart) {
+      return res.status(404).json({
+        success: false,
+        message: "Cart not found for this user",
+      });
+    }
+
+    // Check if this discount is currently applied
+    const discountIndex = userCart.appliedDiscounts.findIndex(
+      (d) => d.discountId.toString() === discount._id.toString()
+    );
+
+    if (discountIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: "This discount is not applied to the cart",
+      });
+    }
+
+    // Remove the discount
+    userCart.appliedDiscounts.splice(discountIndex, 1);
+
+    // Reset totalAfterDiscount to match full total (or you could recalculate)
+    userCart.totalAfterDiscount = userCart.total;
+
+    await userCart.save();
+
+    res.json({
+      success: true,
+      message: "Discount removed successfully",
+      cart: userCart.toObject(),
+    });
   } catch (e) {
     return handleErrors(e, res);
   }
 };
+
 // CONVERT THE CART TO AN ORDER
 module.exports.checkout = async (req, res) => {
   try {
