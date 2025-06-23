@@ -162,100 +162,108 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
 };
 // increment or decrement the quantity of an item in the cart
 module.exports.updateItemQuantity = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { userId } = req.user;
     const { productId, itemSize, operation } = req.body;
 
     if (!["increment", "decrement"].includes(operation)) {
-      return abortWithError(res, session, 400, "Invalid operation");
+      return res.status(400).json({
+        success: false,
+        message: "Invalid operation. Use 'increment' or 'decrement'.",
+      });
     }
 
-    const productIdObj = new mongoose.Types.ObjectId(productId);
+    if (!productId || !itemSize) {
+      return res.status(400).json({
+        success: false,
+        message: "productId and itemSize are required",
+      });
+    }
 
-    // Validate product exists
-    const product = await Product.findById(productIdObj).session(session);
+    const product = await Product.findById(productId);
     if (!product) {
-      return abortWithError(res, session, 404, "Product not found");
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
     }
 
-    // Validate size exists
     if (!product.sizes.has(itemSize)) {
-      return abortWithError(res, session, 400, "Size not available", {
+      return res.status(400).json({
+        success: false,
+        message: "Selected size not available",
         availableSizes: Array.from(product.sizes.keys()),
       });
     }
 
-    // Get user's cart
-    const cart = await Cart.findOne({ userId }).session(session);
+    const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return abortWithError(res, session, 404, "Cart not found");
+      return res.status(404).json({
+        success: false,
+        message: "Cart not found",
+      });
     }
 
     const cartItem = cart.items.find(
       (item) =>
-        item.productId.toString() === productIdObj.toString() &&
+        item.productId.toString() === productId.toString() &&
         item.itemSize === itemSize
     );
 
     if (!cartItem) {
-      return abortWithError(res, session, 404, "Item not found in cart");
+      return res.status(404).json({
+        success: false,
+        message: "Item not found in cart",
+      });
     }
 
-    // Perform update based on operation
-    if (operation === "increment") {
-      const availableStock = product.sizes.get(itemSize);
-      if (availableStock < 1) {
-        return abortWithError(
-          res,
-          session,
-          400,
-          `Not enough stock available. Only ${availableStock} left`
-        );
-      }
-      cartItem.quantity += 1;
-      product.sizes.set(itemSize, availableStock - 1);
-    } else if (operation === "decrement") {
-      if (cartItem.quantity < 1) {
-        return abortWithError(
-          res,
-          session,
-          400,
-          `Cannot decrement, item quantity is already zero`
-        );
-      }
-      cartItem.quantity -= 1;
-      product.sizes.set(itemSize, product.sizes.get(itemSize) + 1);
+    const availableStock = product.sizes.get(itemSize);
 
-      // Optional: remove item if quantity hits 0
+    if (operation === "increment") {
+      if (cartItem.quantity >= availableStock) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot increase quantity. Only ${availableStock} in stock.`,
+        });
+      }
+
+      cartItem.quantity += 1;
+    }
+
+    if (operation === "decrement") {
+      if (cartItem.quantity <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot decrement, item quantity is already zero.",
+        });
+      }
+
+      cartItem.quantity -= 1;
+
+      // Optionally remove item if quantity reaches zero
       if (cartItem.quantity === 0) {
         cart.items = cart.items.filter(
           (item) =>
             !(
-              item.productId.toString() === productIdObj.toString() &&
+              item.productId.toString() === productId.toString() &&
               item.itemSize === itemSize
             )
         );
       }
     }
 
-    await product.save({ session });
-    await cart.save({ session });
-    await session.commitTransaction();
+    await cart.save();
 
     return res.status(200).json({
       success: true,
+      message: `Item quantity ${operation}ed successfully.`,
       cart: cart.toObject(),
     });
   } catch (e) {
-    await session.abortTransaction();
     return handleErrors(e, res);
-  } finally {
-    session.endSession();
   }
 };
+
 // CLEAR CLIENT'S CART
 module.exports.clearClientCart = async (req, res) => {
   try {
