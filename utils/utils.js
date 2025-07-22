@@ -17,7 +17,7 @@ const generateAccessToken = (userId, userRole) => {
   return accessToken;
 };
 const generateRefreshToken = (userId, userRole) => {
-  const accessToken = jwt.sign(
+  const refreshToken = jwt.sign(
     {
       userId,
       role: userRole,
@@ -26,7 +26,7 @@ const generateRefreshToken = (userId, userRole) => {
     { expiresIn: "7d" }
   );
 
-  return accessToken;
+  return refreshToken;
 };
 const abortWithError = async (res, session, status, message, extra = {}) => {
   await session.abortTransaction();

@@ -11,11 +11,28 @@ const {
 module.exports.signup = async (req, res) => {
   // next add confirm password field
   try {
-    const { email, password, name, address, phone, currencyPreference } =
-      req.body;
+    const { name, email, password } = req.body;
 
+    // Check if the user already exists
+    const existingUserName = await User.findOne({ name });
+    if (existingUserName) {
+      return res.status(400).json({
+        success: false,
+        field: "name",
+        message: "Name already exists",
+      });
+    }
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        field: "email",
+        message: "Email already exists",
+      });
+    }
     if (password.trim().length < 8) {
       return res.status(400).json({
+        success: false,
         field: "password",
         message: "Password must be at least 8 characters",
       });
@@ -24,22 +41,37 @@ module.exports.signup = async (req, res) => {
     // Using await with bcrypt.hash to stay in the try/catch scope
     const hash = await bcrypt.hash(password, 12);
     const userId = new mongoose.Types.ObjectId();
-
     const userToAdd = new User({
       _id: userId,
       email,
       password: hash,
       name,
-      phone,
-
-      currencyPreference,
-      role: "user",
+      phone: null,
     });
 
     const result = await userToAdd.save();
-    return res
-      .status(201)
-      .json({ message: "User created successfully", user: result });
+    const userAccessToken = generateAccessToken(userId, result.role);
+    const userRefreshToken = generateRefreshToken(userId, result.role);
+    const userResponse = {
+      accessToken: userAccessToken,
+      _id: result._id,
+      name: result.name,
+      email: result.email,
+      phone: result.phone,
+      addressId: result.addressId,
+      lastLogin: result.lastLogin,
+      role: result.role,
+      status: result.status,
+      currencyPreference: result.currencyPreference,
+      usedDiscounts: result.usedDiscounts,
+      eligibleDiscounts: result.eligibleDiscounts,
+      refreshToken: userRefreshToken,
+    };
+    return res.status(201).json({
+      success: true,
+      message: "Account created successfully",
+      user: userResponse,
+    });
   } catch (error) {
     return handleErrors(error, res);
   }
@@ -51,14 +83,14 @@ module.exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
-        field: "LoginFailedError",
+        success: false,
         message: "Email or password is incorrect",
       });
     }
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({
-        field: "LoginFailedError",
+        success: false,
         message: "Email or password is incorrect",
       });
     }
@@ -70,7 +102,6 @@ module.exports.login = async (req, res) => {
     const updatedUser = await User.findById(user._id)
       .populate("addressId")
       .select("-password -refreshToken -__v -lastLogin -createdAt -updatedAt");
-
     return res.status(200).json({
       success: true,
 
@@ -112,9 +143,9 @@ module.exports.getClientUser = async (req, res) => {
     console.log("user", req.user);
     const { userId } = req.user; // this is passed by the auth middleware
     const user = await User.findById(userId)
-      .select("-password")
-      .populate("address");
-    return res.status(200).json({ user });
+      .select("-password  -__v  -createdAt -updatedAt")
+      .populate("addressId");
+    return res.status(200).json({ success: true, user });
   } catch (e) {
     return handleErrors(e, res);
   }

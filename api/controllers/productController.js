@@ -142,3 +142,58 @@ module.exports.deleteProduct = async (req, res) => {
     handleErrors(e, res);
   }
 };
+module.exports.getFilteredProducts = async (req, res) => {
+  try {
+    const { category, gender, size, price } = req.body;
+
+    const pipeline = [];
+
+    // JOIN category
+    pipeline.push({
+      $lookup: {
+        from: "categories",
+        localField: "categoryId",
+        foreignField: "_id",
+        as: "category",
+      },
+    });
+
+    pipeline.push({ $unwind: "$category" });
+
+    // FILTER
+    const match = {};
+
+    if (category) {
+      match["category.slug"] = category;
+    }
+
+    if (gender) {
+      match["gender"] = gender;
+    }
+
+    if (size) {
+      match["sizes"] = size;
+    }
+
+    if (Object.keys(match).length > 0) {
+      pipeline.push({ $match: match });
+    }
+
+    // SORT
+    if (price === "low to high" || price === "high to low") {
+      const sortDirection = price === "low to high" ? 1 : -1;
+      pipeline.push({ $sort: { price: sortDirection } });
+    }
+
+    console.log(
+      "Starting aggregation with pipeline:",
+      JSON.stringify(pipeline)
+    );
+    const filteredProducts = await Product.aggregate(pipeline);
+    console.log("Aggregation done, returning results");
+
+    res.status(200).json({ success: true, filteredProducts });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};

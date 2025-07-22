@@ -40,6 +40,7 @@ const upload = multer({
 });
 
 router.get("/", ProductController.getAllProducts);
+router.post("/filter", ProductController.getFilteredProducts);
 // GET PRODUCT BY ID
 router.get("/:id", ProductController.getProductById);
 // ADD A PRODUCT

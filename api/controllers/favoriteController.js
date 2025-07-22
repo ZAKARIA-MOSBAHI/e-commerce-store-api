@@ -50,9 +50,12 @@ module.exports.addFavorite = async (req, res) => {
 
     // Save the favorite entry to the database
     await favorite.save();
-
+    const newFavoriteList = await Favorite.find({ userId }).populate(
+      "productId"
+    );
     res.status(201).json({
       success: true,
+      newFavoriteList,
       message: "Favorite added successfully",
     });
   } catch (error) {
@@ -104,10 +107,14 @@ module.exports.removeFavorite = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Favorite not found" });
     }
-
-    res
-      .status(200)
-      .json({ success: true, message: "Favorite removed successfully" });
+    const newFavoriteList = await Favorite.find({ userId }).populate(
+      "productId"
+    );
+    res.status(200).json({
+      success: true,
+      message: "Favorite removed successfully",
+      newFavoriteList,
+    });
   } catch (error) {
     return handleErrors(error, res);
   }

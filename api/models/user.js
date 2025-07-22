@@ -6,7 +6,6 @@ const userSchema = mongoose.Schema(
       required: [true, "Name is required"],
       trim: true,
     },
-
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -18,27 +17,36 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
       minlength: 8, // mongoose will throw a validation error if the password is less than 8 characters
+      // select: false,  Will never be returned in queries unless explicitly requested
     },
     phone: {
       type: String,
       validate: {
         validator: function (v) {
-          return /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/.test(v);
+          if (v) {
+            return /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/.test(v);
+          }
+          return true;
         },
         message: (props) => `${props.value} is not a valid phone number!`,
       },
-      unique: true,
+      default: null,
+      //using a partial index that checks only the non null values
+      // meaning the null values will not considered unique
+      index: {
+        unique: true,
+        partialFilterExpression: { phone: { $type: "string" } },
+      },
     },
     status: {
       type: String,
       enum: ["active", "suspended", "inactive"],
-      required: true,
+      default: "active",
     },
     addressId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Address",
       default: null,
-      required: false,
     },
     role: {
       type: String,
