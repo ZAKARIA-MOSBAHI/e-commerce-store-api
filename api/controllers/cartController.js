@@ -38,28 +38,33 @@ module.exports.addItemsToClientCart = async (req, res) => {
   try {
     const { userId } = req.user;
     const { productId, itemSize } = req.body;
-    const productIdObj = new mongoose.Types.ObjectId(productId);
-    // Step 1: Validate product
-    const product = await Product.findById(productIdObj);
 
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid product ID" });
     }
 
-    // Step 2: Validate size exists in Map (case-sensitive match)
-    if (!product.sizes.has(itemSize)) {
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
+    }
+
+    const productSizes = product.sizes;
+
+    if (!productSizes.has(itemSize)) {
       return res.status(400).json({
         success: false,
         message: "Size not available",
-        availableSizes: Array.from(product.sizes.keys()),
+        availableSizes: Array.from(productSizes.keys()),
       });
     }
 
-    // Step 3: Fetch or create user's cart
+    const availableStock = productSizes.get(itemSize);
     let cart = await Cart.findOne({ userId });
+
     if (!cart) {
       cart = new Cart({
         userId,
@@ -70,43 +75,39 @@ module.exports.addItemsToClientCart = async (req, res) => {
         status: "active",
       });
     }
-    // Step 4: Check if item with same size already exists
 
-    if (verifyStockQuantity(product, itemSize)) {
-      const existingItem = cart.items.find(
-        (item) =>
-          item.productId.toString() === productIdObj.toString() &&
-          item.itemSize === itemSize
-      );
-      if (existingItem) {
-        // checking if there available stock for the item
-        existingItem.quantity += 1;
-      } else {
-        cart.items.push({
-          productId: productIdObj,
-          itemSize,
-          quantity: 1,
-          price: product.price,
+    const existingItem = cart.items.find(
+      (item) =>
+        item.productId.toString() === productId.toString() &&
+        item.itemSize === itemSize
+    );
+
+    if (existingItem) {
+      if (existingItem.quantity >= availableStock) {
+        return res.status(400).json({
+          success: false,
+          message: `Not enough stock available for size ${itemSize}. Only ${availableStock} in stock.`,
         });
       }
-      // updating the cart discount total if a discount is applied
+      existingItem.quantity += 1;
     } else {
-      // If no stock available for this size, abort transaction
-      return res.status(400).json({
-        success: false,
-        message: `Not enough stock available for size ${itemSize}. Only ${
-          product.sizes.get(itemSize) || 0
-        } left`,
+      cart.items.push({
+        productId,
+        itemSize,
+        quantity: 1,
+        price: product.price,
       });
     }
 
     await cart.save();
-    return res.status(200).json({
-      success: true,
-      cart: cart.toObject(),
-    });
-  } catch (e) {
-    return handleErrors(e, res);
+
+    const populatedCart = await Cart.findOne({ userId })
+      .populate("items.productId", "name price mainImage")
+      .lean();
+
+    return res.status(200).json({ success: true, cart: populatedCart });
+  } catch (error) {
+    return handleErrors(error, res);
   }
 };
 // REMOVE ITEM FROM THE CLIENT'S CART
@@ -151,10 +152,12 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     cart.items.splice(itemIndex, 1);
 
     await cart.save();
-
+    const populatedCart = await Cart.findOne({ userId })
+      .populate("items.productId", "name price mainImage")
+      .lean();
     return res.status(200).json({
       success: true,
-      cart: cart.toObject(),
+      cart: populatedCart,
     });
   } catch (e) {
     return handleErrors(e, res);
@@ -164,14 +167,7 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
 module.exports.updateItemQuantity = async (req, res) => {
   try {
     const { userId } = req.user;
-    const { productId, itemSize, operation } = req.body;
-
-    if (!["increment", "decrement"].includes(operation)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid operation. Use 'increment' or 'decrement'.",
-      });
-    }
+    const { productId, itemSize } = req.body;
 
     if (!productId || !itemSize) {
       return res.status(400).json({
@@ -217,47 +213,34 @@ module.exports.updateItemQuantity = async (req, res) => {
       });
     }
 
-    const availableStock = product.sizes.get(itemSize);
-
-    if (operation === "increment") {
-      if (cartItem.quantity >= availableStock) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot increase quantity. Only ${availableStock} in stock.`,
-        });
-      }
-
-      cartItem.quantity += 1;
+    if (cartItem.quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot decrement, item quantity is already zero.",
+      });
     }
 
-    if (operation === "decrement") {
-      if (cartItem.quantity <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Cannot decrement, item quantity is already zero.",
-        });
-      }
+    cartItem.quantity -= 1;
 
-      cartItem.quantity -= 1;
-
-      // Optionally remove item if quantity reaches zero
-      if (cartItem.quantity === 0) {
-        cart.items = cart.items.filter(
-          (item) =>
-            !(
-              item.productId.toString() === productId.toString() &&
-              item.itemSize === itemSize
-            )
-        );
-      }
+    // Optionally remove item if quantity reaches zero
+    if (cartItem.quantity === 0) {
+      cart.items = cart.items.filter(
+        (item) =>
+          !(
+            item.productId.toString() === productId.toString() &&
+            item.itemSize === itemSize
+          )
+      );
     }
 
     await cart.save();
+    const populatedCart = await Cart.findOne({ userId })
+      .populate("items.productId", "name price mainImage")
+      .lean();
 
     return res.status(200).json({
       success: true,
-      message: `Item quantity ${operation}ed successfully.`,
-      cart: cart.toObject(),
+      cart: populatedCart,
     });
   } catch (e) {
     return handleErrors(e, res);

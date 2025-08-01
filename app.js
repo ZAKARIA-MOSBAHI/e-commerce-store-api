@@ -36,6 +36,7 @@ mongoose
 app.use(
   cors({
     origin: "*", // Allow frontend's origin
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
     allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"], // Allow specific headers (including your custom header)
   })
