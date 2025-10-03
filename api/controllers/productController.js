@@ -39,8 +39,8 @@ module.exports.getProductById = async (req, res) => {
 // CREATE PRODUCT
 module.exports.addProduct = async (req, res) => {
   try {
-    const { name, price, description, categoryId, stock, gender, badge } =
-      req.body;
+    const { name, price, description, categoryId, gender, badge } = req.body;
+
     const sizes =
       typeof req.body.sizes === "string"
         ? JSON.parse(req.body.sizes)
@@ -48,6 +48,7 @@ module.exports.addProduct = async (req, res) => {
     console.log(req.files);
     console.log(req.body);
     console.log(sizes);
+    // the stock will be calculated automatically from the sizes
 
     if (!req.files?.mainImage?.[0]) {
       return res.status(400).json({
@@ -62,7 +63,7 @@ module.exports.addProduct = async (req, res) => {
       name,
       price,
       description,
-      stock,
+
       categoryId,
       sizes,
       gender,
@@ -72,11 +73,12 @@ module.exports.addProduct = async (req, res) => {
         altText: removeFileExtension(mainImage.originalname),
       },
       additionalImages: additionalImages.map((file) => ({
-        url: `${process.env.BASE_URL}/${mainImage.filename}`,
+        url: `${process.env.BASE_URL}/${file.filename}`,
         altText: removeFileExtension(file.originalname),
       })),
     });
     const result = await productToAdd.save();
+    console.log(" Product created:", result);
     return res.status(201).json({ success: true, product: result });
   } catch (e) {
     handleErrors(e, res);
