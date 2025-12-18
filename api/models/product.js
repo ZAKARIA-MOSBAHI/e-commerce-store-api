@@ -36,7 +36,7 @@ const productSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["men", "women", "kids"],
+      enum: ["men", "women", "kids", "neutral"],
       required: [true, "Gender is required"],
     },
     badge: {

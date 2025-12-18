@@ -23,7 +23,11 @@ const storage = multer.diskStorage({
 // filter function to validate the incoming file
 const fileFilters = (req, file, callback) => {
   // accept only ".jpeg/png"
-  if (file.mimetype === "image/jpeg" || file.mimetype === "image/png") {
+  if (
+    file.mimetype === "image/jpeg" ||
+    file.mimetype === "image/png" ||
+    file.mimetype === "image/webp"
+  ) {
     // this will store the file
     callback(null, true);
   } else {
