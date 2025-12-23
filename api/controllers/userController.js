@@ -80,15 +80,16 @@ module.exports.signup = async (req, res) => {
 module.exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
+    
+     const user = await User.findOne({ email }); // it doesn't find the user even if exists
+     if (!user) {
       return res.status(401).json({
         success: false,
         message: "Email or password is incorrect",
       });
     }
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
+     const isValidPassword = await bcrypt.compare(password, user.password);
+     if (!isValidPassword) {
       return res.status(401).json({
         success: false,
         message: "Email or password is incorrect",
@@ -150,7 +151,7 @@ module.exports.getClientUser = async (req, res) => {
     return handleErrors(e, res);
   }
 };
-// delete the logging user accoutn
+// delete the logging user account
 module.exports.deleteClientUser = async (req, res) => {
   const { userId } = req.user;
   try {
