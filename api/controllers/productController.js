@@ -68,14 +68,14 @@ module.exports.addProduct = async (req, res) => {
       sizes,
       gender,
       badge,
-      mainImage: {
-        url: `${process.env.BASE_URL}/${mainImage.filename}`,
-        altText: removeFileExtension(mainImage.originalname),
-      },
-      additionalImages: additionalImages.map((file) => ({
-        url: `${process.env.BASE_URL}/${file.filename}`,
-        altText: removeFileExtension(file.originalname),
-      })),
+    mainImage: {
+  url: `/uploads/${mainImage.filename}`,
+  altText: removeFileExtension(mainImage.originalname),
+},
+additionalImages: additionalImages.map((file) => ({
+  url: `/uploads/${file.filename}`,
+  altText: removeFileExtension(file.originalname),
+})),
     });
     const result = await productToAdd.save();
     console.log(" Product created:", result);
@@ -92,14 +92,14 @@ module.exports.updateProduct = async (req, res) => {
     // Handling images update
     if (req.files.mainImage) {
       const newMainImage = {
-        url: `${process.env.BASE_URL}/${req.files.mainImage[0].filename}`,
+        url: `uploads/${req.files.mainImage[0].filename}`,
         altText: removeFileExtension(req.files.mainImage[0].originalname),
       };
       propertiesToUpdate.mainImage = newMainImage;
     }
     if (req.files.additionalImages) {
       const newAdditionalImages = req.files.additionalImages.map((image) => ({
-        url: `${process.env.BASE_URL}/${image.filename}`,
+        url: `uploads/${image.filename}`,
         altText: removeFileExtension(image.originalname),
       }));
       propertiesToUpdate.additionalImages = newAdditionalImages;

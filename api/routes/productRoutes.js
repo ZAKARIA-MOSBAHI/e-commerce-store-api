@@ -1,16 +1,19 @@
 const express = require("express");
 const router = express.Router();
+const path = require("path");
 const mongoose = require("mongoose");
 const Product = require("../models/product");
 const multer = require("multer");
 const { removeFileExtension } = require("../../utils/utils");
 const ProductController = require("../controllers/productController");
 const { authenticate, authorizeAdmin } = require("../middlewares/auth");
+
+const uploadDir = path.join(__dirname, "../../uploads");
 const storage = multer.diskStorage({
   // multer will execute this functions whenever a file is received
   destination: (req, file, callback) => {
     //This function determines the directory where the uploaded files will be stored.
-    callback(null, "./uploads/"); // it returns file not found
+    callback(null, uploadDir); // it returns file not found
   },
   //This function controls how the uploaded files are named when they are saved.
   filename: (req, file, callback) => {
