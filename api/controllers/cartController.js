@@ -14,13 +14,14 @@ const { updateCartTotalAfterDiscount } = require("../../utils/cartUtils");
 // GET THE CLIENT'S CART
 module.exports.getClientCart = async (req, res) => {
   try {
+    console.log(req.user);
     const { userId } = req.user;
-    const userCart = await Cart.findOne({ userId })
-      .populate({
-        path: "items.productId",
-        select: "name price mainImage",
-      })
-      .lean();
+    const userCart = await Cart.findOne({ userId }).populate({
+      path: "items.productId",
+      select: "name price mainImage sizes",
+    })
+    .lean();
+    console.log(userCart);
     if (!userCart) {
       return res.status(404).json({ message: "Cart not found" });
     }
