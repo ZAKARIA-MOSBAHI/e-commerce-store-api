@@ -34,7 +34,7 @@ module.exports.getClientCart = async (req, res) => {
     return handleErrors(e, res);
   }
 };
-// ADD ITEM TO THE CLIENT'S CART
+// ADD ITEM TO THE CLIENT'S CART and increment quantity if already exists
 module.exports.addItemsToClientCart = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -164,7 +164,7 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     return handleErrors(e, res);
   }
 };
-// increment or decrement the quantity of an item in the cart
+// decrement the quantity of an item in the cart
 module.exports.updateItemQuantity = async (req, res) => {
   try {
     const { userId } = req.user;

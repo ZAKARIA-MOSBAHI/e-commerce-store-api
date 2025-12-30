@@ -29,7 +29,8 @@ const fileFilters = (req, file, callback) => {
   if (
     file.mimetype === "image/jpeg" ||
     file.mimetype === "image/png" ||
-    file.mimetype === "image/webp"
+    file.mimetype === "image/webp" ||
+    file.mimetype === "image/avif"
   ) {
     // this will store the file
     callback(null, true);

@@ -1,4 +1,4 @@
-// seed.js
+//NEXT  : encapsulate the seeding logic into functions for better readability and maintainability.
 const mongoose = require("mongoose");
 const { faker } = require("@faker-js/faker");
 require("dotenv").config();
@@ -50,11 +50,14 @@ async function seedDatabase() {
 
     // ---- CATEGORIES ----
     if ((await Category.countDocuments()) === 0) {
-      const categories = await Category.insertMany([
-        { name: "Shoes", slug: "shoes" },
-        { name: "Clothes", slug: "clothes" },
-        { name: "Accessories", slug: "accessories" },
-      ]);
+     const categories = await Category.insertMany([
+  { name: "T-Shirts", slug: "t-shirts" },
+  { name: "Sweatshirts", slug: "sweatshirts" },
+  { name: "Shorts", slug: "shorts" },
+  { name: "Trousers", slug: "trousers" },
+  { name: "Denim", slug: "denim" },
+]);
+
       console.log("Categories seeded");
 
       // ---- SUBCATEGORIES ----
@@ -80,15 +83,15 @@ async function seedDatabase() {
 
     // ---- PRODUCTS ----
     if ((await Product.countDocuments()) === 0) {
-      const shoesCategory = await Category.findOne({ slug: "shoes" });
-      const clothesCategory = await Category.findOne({ slug: "clothes" });
+      const tShirtsCategory = await Category.findOne({ slug: "t-shirts" });
+      const sweatshirtsCategory = await Category.findOne({ slug: "sweatshirts" });
 
       const products = [
         {
-          name: "Running Shoes",
+          name: "T-Shirt",
           price: 120,
           mainImage: { url: faker.image.urlPicsumPhotos({ width: 200, height: 200 }), altText: "Running Shoes" },
-          categoryId: shoesCategory._id,
+          categoryId: tShirtsCategory._id,
           gender: "men",
           sizes: { L: 5, XL: 10 },
         },
@@ -96,8 +99,8 @@ async function seedDatabase() {
           name: "T-Shirt",
           price: 25,
           mainImage: { url: faker.image.urlPicsumPhotos({ width: 200, height: 200 }), altText: "T-Shirt" },
-          categoryId: clothesCategory._id,
-          gender: "neutral",
+          categoryId: sweatshirtsCategory._id,
+          gender: "unisex",
           sizes: { S: 10, M: 15, L: 5 },
         },
       ];
