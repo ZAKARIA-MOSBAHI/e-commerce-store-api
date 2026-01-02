@@ -1,9 +1,9 @@
 // does the image get deleted when updated ?
 const mongoose = require("mongoose");
 const Product = require("../models/product");
-const { removeFileExtension } = require("../../utils/utils");
+const { removeFileExtension } = require("../utils/utils");
 // A HELPER FUNCTION TO HANDLE ERRORS
-const handleErrors = require("../../utils/errorHandler");
+const handleErrors = require("../utils/errorHandler");
 // GET ALL PRODUCTS
 module.exports.getAllProducts = async (req, res) => {
   try {

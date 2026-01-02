@@ -1,6 +1,6 @@
 const favoriteRoutes = require("express").Router();
 const favoriteController = require("../controllers/favoriteController");
-const { authenticate } = require("../middlewares/auth");
+const { authenticate } = require("../middleware/auth");
 
 // get all favorite products for a user
 favoriteRoutes.get("/", authenticate, favoriteController.getFavorites);

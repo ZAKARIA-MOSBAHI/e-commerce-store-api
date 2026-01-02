@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const cartController = require("../controllers/cartController");
-const { authenticate } = require("../middlewares/auth");
-const { validateDiscount } = require("../middlewares/validateDiscount");
+const { authenticate } = require("../middleware/auth");
+const { validateDiscount } = require("../middleware/validateDiscount");
 // GET THE USER'S CURRENT CART
 router.get("/me", authenticate, cartController.getClientCart);
 

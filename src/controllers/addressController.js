@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Address = require("../models/address");
-const handleErrors = require("../../utils/errorHandler");
+const handleErrors = require("../utils/errorHandler");
 const User = require("../models/user");
 
 // get all Addresses (admin)

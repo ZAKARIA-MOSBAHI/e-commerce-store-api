@@ -4,9 +4,9 @@ const path = require("path");
 const mongoose = require("mongoose");
 const Product = require("../models/product");
 const multer = require("multer");
-const { removeFileExtension } = require("../../utils/utils");
+const { removeFileExtension } = require("../utils/utils");
 const ProductController = require("../controllers/productController");
-const { authenticate, authorizeAdmin } = require("../middlewares/auth");
+const { authenticate, authorizeAdmin } = require("../middleware/auth");
 
 const uploadDir = path.join(__dirname, "../../uploads");
 const storage = multer.diskStorage({

@@ -1,4 +1,4 @@
-const handleErrors = require("../../utils/errorHandler");
+const handleErrors = require("../utils/errorHandler");
 
 // GET ALL ORDERS
 module.exports.getOrders = (req, res) => {

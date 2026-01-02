@@ -4,7 +4,7 @@ const User = require("../models/user");
 const {
   generateAccessToken,
   generateRefreshToken,
-} = require("../../utils/utils");
+} = require("../utils/utils");
 router.get("/", async (req, res) => {
   const refreshToken = req.headers["x-refresh-token"];
   console.log(refreshToken);

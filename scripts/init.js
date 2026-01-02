@@ -14,6 +14,7 @@ const Discount = require("../api/models/discount");
 const Cart = require("../api/models/cart");
 const Favorite = require("../api/models/favorite");
 const Order = require("../api/models/order");
+const { seedProducts } = require("./seeders/productSeeder");
 
 async function seedDatabase() {
   try {
@@ -83,29 +84,7 @@ async function seedDatabase() {
 
     // ---- PRODUCTS ----
     if ((await Product.countDocuments()) === 0) {
-      const tShirtsCategory = await Category.findOne({ slug: "t-shirts" });
-      const sweatshirtsCategory = await Category.findOne({ slug: "sweatshirts" });
-
-      const products = [
-        {
-          name: "T-Shirt",
-          price: 120,
-          mainImage: { url: faker.image.urlPicsumPhotos({ width: 200, height: 200 }), altText: "Running Shoes" },
-          categoryId: tShirtsCategory._id,
-          gender: "men",
-          sizes: { L: 5, XL: 10 },
-        },
-        {
-          name: "T-Shirt",
-          price: 25,
-          mainImage: { url: faker.image.urlPicsumPhotos({ width: 200, height: 200 }), altText: "T-Shirt" },
-          categoryId: sweatshirtsCategory._id,
-          gender: "unisex",
-          sizes: { S: 10, M: 15, L: 5 },
-        },
-      ];
-      await Product.insertMany(products);
-      console.log("Products seeded");
+      seedProducts();     
     }
 
     // ---- ADDRESSES ----

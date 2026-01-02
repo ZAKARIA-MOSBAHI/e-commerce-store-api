@@ -1,48 +1,19 @@
 const express = require("express");
 const app = express();
-// importing morgan middleware : morgan is a logger middleware
 const morgan = require("morgan");
-const cors = require("cors");
-// importing body-parser middleware : body-parser is a middleware to parse the body of the request
-// because the request body is harder to read
 const bodyParser = require("body-parser");
-// mongodb
-const mongoose = require("mongoose");
-// ROUTERS
-const productRouter = require("./api/routes/productRoutes");
-const usersRouter = require("./api/routes/userRoutes");
-const cartRouter = require("./api/routes/cartRoutes");
-const ordersRouter = require("./api/routes/orderRoutes");
-const categoriesRouter = require("./api/routes/categoryRoutes");
-const subcategoriesRouter = require("./api/routes/subcategoryRoutes");
-const addressRouter = require("./api/routes/addressRoutes");
-const refreshTokenRouter = require("./api/routes/refreshTokenRoute");
-const searchRoute = require("./api/routes/searchRoute");
-const favoriteRoutes = require("./api/routes/favoriteRoutes");
+// configs 
+const connectDB = require("./src/config/db");
+const corsOptions = require("./src/config/cors");
+ // ROUTER
+const routes = require("./src/routes");
+app.use("/" , routes);
 //DATABASE CONNECTION
-mongoose
-  .connect("mongodb://localhost:27017/store", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log("Successfully connected to MongoDB.");
-  })
-  .catch((error) => {
-    console.error("Error connecting to MongoDB:", error);
-  });
+connectDB();
 // MIDDLEWARES
-// Enable CORS with custom configuration
-app.use(
-  cors({
-    origin: "*", // Allow frontend's origin
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
-    allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"], // Allow specific headers (including your custom header)
-  })
-);
-app.use(morgan("dev"));
-app.use("/uploads" , express.static("uploads")); // this middleware make the uploads file accessible for public (read only)
+app.use(corsOptions );
+app.use(morgan("dev")); // process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+app.use("/uploads" , express.static("uploads"));// constants?.UPLOADS?.UPLOAD_DIR || "uploads";
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 // HEADERS
@@ -59,18 +30,7 @@ app.use((req, res, next) => {
   }
   next();
 });
-// LISTENERS
-app.use("/users", usersRouter);
-app.use("/products", productRouter);
-app.use("/carts", cartRouter);
-app.use("/orders", ordersRouter);
-app.use("/categories", categoriesRouter);
-app.use("/subcategories", subcategoriesRouter);
-app.use("/address", addressRouter);
-app.use("/refresh-token", refreshTokenRouter);
-app.use("/search", searchRoute);
-app.use("/favorites", favoriteRoutes);
-
+ 
 // ERROR HANDLERS
 app.use((req, res, next) => {
   // this handler will be called when no route is matched
@@ -88,4 +48,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
-// create admin routes later

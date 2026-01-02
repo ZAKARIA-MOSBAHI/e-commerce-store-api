@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const orderController = require("../controllers/orderController");
-const { authenticate } = require("../middlewares/auth");
+const { authenticate } = require("../middleware/auth");
 
 router.get("/", orderController.getOrders);
 // GET ORDER DETAILS BY ORDER ID

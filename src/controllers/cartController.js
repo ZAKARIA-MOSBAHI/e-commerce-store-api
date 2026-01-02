@@ -3,14 +3,14 @@
 If any update fails, the whole transaction is rolled back.*/
 const mongoose = require("mongoose");
 const Cart = require("../models/cart");
-const handleErrors = require("../../utils/errorHandler");
+const handleErrors = require("../utils/errorHandler");
 const Product = require("../models/product");
 const Discount = require("../models/discount");
 const User = require("../models/user");
 const Order = require("../models/order");
-const { verifyStockQuantity } = require("../../utils/verifyStockQuantity");
-const { abortWithError } = require("../../utils/utils");
-const { updateCartTotalAfterDiscount } = require("../../utils/cartUtils");
+const { verifyStockQuantity } = require("../utils/verifyStockQuantity");
+const { abortWithError } = require("../utils/utils");
+const { updateCartTotalAfterDiscount } = require("../utils/cartUtils");
 // GET THE CLIENT'S CART
 module.exports.getClientCart = async (req, res) => {
   try {

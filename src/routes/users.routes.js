@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
-const loginLimiter = require("../middlewares/limiter");
-const { authenticate, authorizeAdmin } = require("../middlewares/auth");
+const loginLimiter = require("../middleware/limiter");
+const { authenticate, authorizeAdmin } = require("../middleware/auth");
 
 // CREATE A USER (only clients) , admin accounts are created in the database manually
 router.post("/signup", userController.signup);

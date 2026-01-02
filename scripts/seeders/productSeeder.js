@@ -20,8 +20,8 @@ import SweatShort4 from '../images/Sweat_short_4.webp';
 const mongoose = require("mongoose");
 const { ObjectId } = mongoose.Types;
 // Models
-const Product = require("../../api/models/product");
-const Category = require("../../api/models/category");
+const Product = require("../../src/models/product");
+const Category = require("../../src/models/category");
 // Categories 
 const tShirtsCategory = await Category.findOne({ slug: "t-shirts" });
 const sweatshirtsCategory = await Category.findOne({ slug: "sweatshirts" });

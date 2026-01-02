@@ -1,7 +1,7 @@
 const Favorite = require("../models/favorite");
 const User = require("../models/user");
 const Product = require("../models/product");
-const handleErrors = require("../../utils/errorHandler");
+const handleErrors = require("../utils/errorHandler");
 
 module.exports.addFavorite = async (req, res) => {
   try {

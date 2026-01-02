@@ -2,11 +2,11 @@ const mongoose = require("mongoose");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const handleErrors = require("../../utils/errorHandler");
+const handleErrors = require("../utils/errorHandler");
 const {
   generateAccessToken,
   generateRefreshToken,
-} = require("../../utils/utils");
+} = require("../utils/utils");
 
 module.exports.signup = async (req, res) => {
   // next add confirm password field
