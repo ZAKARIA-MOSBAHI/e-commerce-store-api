@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const cartController = require("../controllers/cartController");
+const cartController = require("../controllers/cart.controller");
 const { authenticate } = require("../middleware/auth");
 const { validateDiscount } = require("../middleware/validateDiscount");
 // GET THE USER'S CURRENT CART

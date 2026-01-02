@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const addressController = require("../controllers/addressController");
+const addressController = require("../controllers/address.controller");
 const { authenticate, authorizeAdmin } = require("../middleware/auth");
 // GET ALL ADRESSES (ADMIN)
 router.get("/", authenticate, authorizeAdmin, addressController.getAddresses);

@@ -14,7 +14,7 @@ const Discount = require("../api/models/discount");
 const Cart = require("../api/models/cart");
 const Favorite = require("../api/models/favorite");
 const Order = require("../api/models/order");
-const { seedProducts } = require("./seeders/productSeeder");
+const { seedProducts } = require("./seeders/products.seeder");
 
 async function seedDatabase() {
   try {
