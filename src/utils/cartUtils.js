@@ -19,4 +19,4 @@ const updateCartTotalAfterDiscount = (cart, operation, value) => {
   return cart.totalAfterDiscount;
 };
 
-export { updateCartTotalAfterDiscount };
+module.exports =  { updateCartTotalAfterDiscount };

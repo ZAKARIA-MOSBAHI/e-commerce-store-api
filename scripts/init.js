@@ -5,24 +5,22 @@ require("dotenv").config();
 const bcrypt = require("bcrypt");
 
 // Models
-const User = require("../api/models/user");
-const Address = require("../api/models/address");
-const Category = require("../api/models/category");
-const Subcategory = require("../api/models/subcategory");
-const Product = require("../api/models/product");
-const Discount = require("../api/models/discount");
-const Cart = require("../api/models/cart");
-const Favorite = require("../api/models/favorite");
-const Order = require("../api/models/order");
+const User = require("../src/models/user");
+const Address = require("../src/models/address");
+const Category = require("../src/models/category");
+const Subcategory = require("../src/models/subcategory");
+const Product = require("../src/models/product");
+const Discount = require("../src/models/discount");
+const Cart = require("../src/models/cart");
+const Favorite = require("../src/models/favorite");
+const Order = require("../src/models/order");
 const { seedProducts } = require("./seeders/products.seeder");
+const connectDB = require("../src/config/db");
 
 async function seedDatabase() {
   try {
-    const URI = process.env.MONGO_URI || "mongodb://localhost:27017/store";
-    await mongoose.connect(URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    // Connect to MongoDB
+    await connectDB();
     console.log("MongoDB connected");
 
     // ---- USERS ----
