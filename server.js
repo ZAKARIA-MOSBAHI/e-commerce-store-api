@@ -7,30 +7,19 @@ const connectDB = require("./src/config/db");
 const corsOptions = require("./src/config/cors");
  // ROUTER
 const routes = require("./src/routes");
-app.use("/" , routes);
+
 //DATABASE CONNECTION
 connectDB();
+// CORS Middleware 
+app.use(corsOptions);
+app.options("*" , corsOptions);
 // MIDDLEWARES
-app.use(corsOptions );
 app.use(morgan("dev")); // process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
 app.use("/uploads" , express.static("uploads"));// constants?.UPLOADS?.UPLOAD_DIR || "uploads";
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-// HEADERS
-app.use((req, res, next) => {
-  // this middleware intercepts every request and adds a header
-  res.header("Access-Control-Allow-Origin", "*"); //allows requests from any domain
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept , Authorization"
-  );
-  if (req.method === "OPTIONS") {
-    res.header("Access-Control-Allow-Methods", "PUT, POST, PATCH, DELETE, GET");
-    return res.status(200).json({});
-  }
-  next();
-});
- 
+// Router
+app.use("/" , routes);
 // ERROR HANDLERS
 app.use((req, res, next) => {
   // this handler will be called when no route is matched

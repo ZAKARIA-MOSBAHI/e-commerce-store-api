@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || "mongodb://mongo:27017/store", {
+    const conn = await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/luxewave", {
         maxPoolSize: 10,  
       serverSelectionTimeoutMS: 5000, 
     });

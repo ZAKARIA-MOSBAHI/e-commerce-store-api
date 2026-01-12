@@ -104,6 +104,7 @@ async function seedDatabase() {
     if ((await Cart.countDocuments()) === 0) {
       const user = await User.findOne({ role: "user" });
       const product = await Product.findOne();
+      console.log(product)
       await Cart.create({
         userId: user._id,
         items: [
