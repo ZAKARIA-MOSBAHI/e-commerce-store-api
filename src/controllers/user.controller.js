@@ -79,10 +79,9 @@ module.exports.signup = async (req, res) => {
 // login,  you can add 2 factor auth middleware for admin when logged in
 module.exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    
+     const { email, password } = req.body;
      const user = await User.findOne({ email }); // it doesn't find the user even if exists
-     if (!user) {
+      if (!user) {
       return res.status(401).json({
         success: false,
         message: "Email or password is incorrect",

@@ -103,7 +103,7 @@ module.exports.addItemsToClientCart = async (req, res) => {
     await cart.save();
 
     const populatedCart = await Cart.findOne({ userId })
-      .populate("items.productId", "name price mainImage")
+      .populate("items.productId", "name price mainImage sizes")
       .lean();
 
     return res.status(200).json({ success: true, cart: populatedCart });
