@@ -43,8 +43,9 @@ const productSchema = new mongoose.Schema(
       type: String,
     },
     stock: {
-      type: Number,
-    },
+  type: Number,
+  default: 0,
+},    
     sizes: {
       type: Map, //means object with string keys and values
       of: Number,
@@ -54,6 +55,8 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 // Automatically calculate stock based on sizes before saving
+ 
+
 productSchema.pre("save", function (next) {
   if (this.sizes && this.sizes instanceof Map) {
     let total = 0;

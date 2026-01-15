@@ -69,7 +69,7 @@ const seedProducts = async () => {
         gender: 'men',
         badge: 'Best Seller',
         sizes: { M: 5, XL: 12, L: 22 },
-        stockQuantity: 39
+        stock: 39
       },
       {
         name: 'Everyone hoodie',
@@ -100,7 +100,7 @@ const seedProducts = async () => {
         gender: 'unisex',
         badge: 'Best Seller',
         sizes: { M: 5, XL: 12, L: 22 },
-        stockQuantity: 39
+        stock: 39
       },
       {
         name: 'Short sleeve boxy tee',
@@ -131,7 +131,7 @@ const seedProducts = async () => {
         gender: 'women',
         badge: 'New Arrivals',
         sizes: { M: 5, XL: 12, L: 22 },
-        stockQuantity: 39
+        stock: 39
       },
       {
         name: 'Sweat Shorts',
@@ -162,13 +162,9 @@ const seedProducts = async () => {
         gender: 'women',
         badge: 'Best Seller',
         sizes: { M: 5, XL: 12, L: 22 },
-        stockQuantity: 39
+        stock: 39
       }
     ];
-
-    // Clear existing products (optional)
-    console.log('Clearing existing products...');
-    await Product.deleteMany({});
     
     // Insert new products
     console.log('Seeding products...');

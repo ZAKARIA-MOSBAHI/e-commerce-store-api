@@ -17,8 +17,17 @@ const Order = require("../src/models/order");
 const { seedProducts } = require("./seeders/products.seeder");
 const connectDB = require("../src/config/db");
 
+async function clearDatabase() {
+  console.log("Clearing existing collections...");
+  const models = [User, Address, Category, Subcategory, Product, Discount, Cart, Favorite, Order];
+  for (const model of models) {
+    await model.deleteMany({});
+  }
+  console.log("Database cleared!");
+}
 async function seedDatabase() {
   try {
+    clearDatabase()
     // Connect to MongoDB
     await connectDB();
     console.log("MongoDB connected");
