@@ -13,20 +13,18 @@ const addressSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-    state: {
-      type: String,
-      required: true,
-    },
+
     country: {
       type: String,
       required: true,
+      default: "Morocco",
     }, // ISO code (e.g., "US")
     zipCode: {
       type: String,
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Address = mongoose.model("Address", addressSchema);

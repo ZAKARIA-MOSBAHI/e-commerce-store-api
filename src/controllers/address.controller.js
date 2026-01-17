@@ -26,33 +26,48 @@ module.exports.getClientAddress = async (req, res) => {
     handleErrors(e, res);
   }
 };
-// create client Address
 module.exports.createClientAddress = async (req, res) => {
   try {
     const { userId } = req.user;
-    const { street, city, state, country, zipCode } = req.body;
-    const address = new Address({
-      _id: new mongoose.Types.ObjectId(),
-      userId: userId,
+    const { street, city, country, zipCode } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    if (user.addressId) {
+      return res.status(400).json({
+        success: false,
+        message: "User already has an address",
+      });
+    }
+
+    const newAddress = await Address.create({
+      userId,
       street,
       city,
-      state,
       country,
       zipCode,
     });
-    const result = await address.save();
-    const updatingUser = await User.findByIdAndUpdate(
+
+    const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        address: result._id,
-      },
-      { new: true, runValidators: true }
+      { addressId: newAddress._id },
+      { new: true, runValidators: true },
     );
-    res.json({ newUser: updatingUser });
+
+    res.status(201).json({
+      user: updatedUser,
+      newAddress,
+    });
   } catch (e) {
     handleErrors(e, res);
   }
 };
+
 // create address (admin)
 module.exports.createAddress = async (req, res) => {
   try {
@@ -73,7 +88,7 @@ module.exports.createAddress = async (req, res) => {
       {
         address: result._id,
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     res.json({ newUser: updatingUser });
   } catch (e) {

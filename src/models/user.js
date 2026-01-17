@@ -55,8 +55,7 @@ const userSchema = mongoose.Schema(
     },
     currencyPreference: {
       type: String,
-      enum: ["USD", "EUR", "GBP"], // Add your supported currencies
-      default: "USD",
+      default: "MAD",
     },
     refreshToken: {
       type: String,
@@ -90,7 +89,7 @@ const userSchema = mongoose.Schema(
   },
   {
     timestamps: true, // adds createdAt and updatedAt fields
-  }
+  },
 );
 
 const User = mongoose.model("User", userSchema);

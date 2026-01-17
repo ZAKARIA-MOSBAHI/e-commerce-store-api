@@ -10,12 +10,18 @@ router.get("/me", authenticate, cartController.getClientCart);
 router.post("/me/items", authenticate, cartController.addItemsToClientCart);
 // Update the items quantity in the client's cart
 router.put("/me/items/update", authenticate, cartController.updateItemQuantity);
+//update the size of an item
+router.put(
+  "/me/items/update-size",
+  authenticate,
+  cartController.updateCartItemSize,
+);
 
 // DELETE AN ITEM FROM THE CLIENT'S CART
 router.delete(
   "/me/items",
   authenticate,
-  cartController.deleteItemFromClientCart
+  cartController.deleteItemFromClientCart,
 );
 // CLEAR THE CLIENT'S CART
 router.delete("/me", authenticate, cartController.clearClientCart);
@@ -24,7 +30,7 @@ router.post(
   "/apply-discount",
   authenticate,
 
-  cartController.applyDiscount
+  cartController.applyDiscount,
 );
 // REMOVE A DISCOUNT FROM THE CART
 router.post("/remove-discount", authenticate, cartController.removeDiscount);

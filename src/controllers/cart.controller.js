@@ -8,19 +8,18 @@ const Product = require("../models/product");
 const Discount = require("../models/discount");
 const User = require("../models/user");
 const Order = require("../models/order");
-const { verifyStockQuantity } = require("../utils/verifyStockQuantity");
-const { abortWithError } = require("../utils/utils");
-const { updateCartTotalAfterDiscount } = require("../utils/cartUtils");
+
 // GET THE CLIENT'S CART
 module.exports.getClientCart = async (req, res) => {
   try {
     console.log(req.user);
     const { userId } = req.user;
-    const userCart = await Cart.findOne({ userId }).populate({
-      path: "items.productId",
-      select: "name price mainImage sizes",
-    })
-    .lean();
+    const userCart = await Cart.findOne({ userId })
+      .populate({
+        path: "items.productId",
+        select: "name price mainImage sizes",
+      })
+      .lean();
     console.log(userCart);
     if (!userCart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -80,7 +79,7 @@ module.exports.addItemsToClientCart = async (req, res) => {
     const existingItem = cart.items.find(
       (item) =>
         item.productId.toString() === productId.toString() &&
-        item.itemSize === itemSize
+        item.itemSize === itemSize,
     );
 
     if (existingItem) {
@@ -139,7 +138,7 @@ module.exports.deleteItemFromClientCart = async (req, res) => {
     const itemIndex = cart.items.findIndex(
       (item) =>
         item.productId.toString() === productIdObj.toString() &&
-        item.itemSize === itemSize
+        item.itemSize === itemSize,
     );
 
     if (itemIndex === -1) {
@@ -204,7 +203,7 @@ module.exports.updateItemQuantity = async (req, res) => {
     const cartItem = cart.items.find(
       (item) =>
         item.productId.toString() === productId.toString() &&
-        item.itemSize === itemSize
+        item.itemSize === itemSize,
     );
 
     if (!cartItem) {
@@ -230,7 +229,7 @@ module.exports.updateItemQuantity = async (req, res) => {
           !(
             item.productId.toString() === productId.toString() &&
             item.itemSize === itemSize
-          )
+          ),
       );
     }
 
@@ -247,7 +246,109 @@ module.exports.updateItemQuantity = async (req, res) => {
     return handleErrors(e, res);
   }
 };
+// Update the size of a cart item, checking stock
+module.exports.updateCartItemSize = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { productId, oldSize, newSize } = req.body;
 
+    if (!productId || !oldSize || !newSize) {
+      return res.status(400).json({
+        success: false,
+        message: "productId, oldSize and newSize are required",
+      });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const availableSizes = Array.from(product.sizes.keys());
+
+    if (!product.sizes.has(newSize)) {
+      return res.status(400).json({
+        success: false,
+        message: "Selected size not available",
+        availableSizes,
+      });
+    }
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      return res.status(404).json({
+        success: false,
+        message: "Cart not found",
+      });
+    }
+    console.log(cart.items[0]);
+    const cartItem = cart.items.find(
+      (item) =>
+        item.productId.toString() === productId.toString() &&
+        item.itemSize === oldSize,
+    );
+
+    if (!cartItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found in cart",
+      });
+    }
+
+    const availableQty = product.sizes.get(newSize);
+    if (cartItem.quantity > availableQty) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot switch to size ${newSize}, only ${availableQty} items available`,
+      });
+    }
+
+    const existingNewSizeItem = cart.items.find(
+      (item) =>
+        item.productId.toString() === productId.toString() &&
+        item.itemSize === newSize,
+    );
+
+    if (existingNewSizeItem) {
+      const totalQty = existingNewSizeItem.quantity + cartItem.quantity;
+
+      if (totalQty > availableQty) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot merge items: total quantity (${totalQty}) exceeds available stock (${availableQty})`,
+        });
+      }
+
+      existingNewSizeItem.quantity = totalQty;
+
+      cart.items = cart.items.filter(
+        (item) =>
+          !(
+            item.productId.toString() === productId.toString() &&
+            item.itemSize === oldSize
+          ),
+      );
+    } else {
+      cartItem.itemSize = newSize;
+    }
+
+    await cart.save();
+
+    const populatedCart = await Cart.findOne({ userId })
+      .populate("items.productId", "name price mainImage")
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      cart: populatedCart,
+    });
+  } catch (e) {
+    return handleErrors(e, res);
+  }
+};
 // CLEAR CLIENT'S CART
 module.exports.clearClientCart = async (req, res) => {
   try {
@@ -265,7 +366,7 @@ module.exports.clearClientCart = async (req, res) => {
           status: "active",
         },
       },
-      { new: true }
+      { new: true },
     );
 
     if (!clearedCart) {
@@ -414,7 +515,7 @@ module.exports.removeDiscount = async (req, res) => {
 
     // Check if this discount is currently applied
     const discountIndex = userCart.appliedDiscounts.findIndex(
-      (d) => d.discountId.toString() === discount._id.toString()
+      (d) => d.discountId.toString() === discount._id.toString(),
     );
 
     if (discountIndex === -1) {
@@ -463,7 +564,7 @@ module.exports.checkout = async (req, res) => {
 
     const cart = await Cart.findOne({ userId }).populate(
       "items.productId",
-      "price"
+      "price",
     );
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Invalid or empty cart" });
@@ -508,7 +609,7 @@ module.exports.checkout = async (req, res) => {
             discountTotal: 0,
             appliedDiscounts: [],
           },
-        }
+        },
       );
     }
     res.status(201).json({

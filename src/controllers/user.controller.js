@@ -1,12 +1,8 @@
 const mongoose = require("mongoose");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 const handleErrors = require("../utils/errorHandler");
-const {
-  generateAccessToken,
-  generateRefreshToken,
-} = require("../utils/utils");
+const { generateAccessToken, generateRefreshToken } = require("../utils/utils");
 
 module.exports.signup = async (req, res) => {
   // next add confirm password field
@@ -79,16 +75,16 @@ module.exports.signup = async (req, res) => {
 // login,  you can add 2 factor auth middleware for admin when logged in
 module.exports.login = async (req, res) => {
   try {
-     const { email, password } = req.body;
-     const user = await User.findOne({ email }); // it doesn't find the user even if exists
-      if (!user) {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email }); // it doesn't find the user even if exists
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: "Email or password is incorrect",
       });
     }
-     const isValidPassword = await bcrypt.compare(password, user.password);
-     if (!isValidPassword) {
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
       return res.status(401).json({
         success: false,
         message: "Email or password is incorrect",
@@ -99,9 +95,9 @@ module.exports.login = async (req, res) => {
     user.refreshToken = refreshToken;
     user.lastLogin = Date.now();
     await user.save();
-    const updatedUser = await User.findById(user._id)
-      .populate("addressId")
-      .select("-password -refreshToken -__v -lastLogin -createdAt -updatedAt");
+    const updatedUser = await User.findById(user._id).select(
+      "-password -refreshToken -__v -lastLogin -createdAt -updatedAt",
+    );
     return res.status(200).json({
       success: true,
 
@@ -180,13 +176,7 @@ module.exports.updateClientUser = async (req, res) => {
   try {
     const { userId } = req.user;
     // Define allowed fields for client updates (exclude 'role')
-    const allowedFields = [
-      "name",
-      "email",
-      "password",
-      "phone",
-      "currencyPreference",
-    ];
+    const allowedFields = ["name", "email", "password", "phone"];
     const updateData = {};
 
     // Populate updateData with only present and allowed fields
