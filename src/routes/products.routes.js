@@ -1,8 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const path = require("path");
-const mongoose = require("mongoose");
-const Product = require("../models/product");
 const multer = require("multer");
 const { removeFileExtension } = require("../utils/utils");
 const ProductController = require("../controllers/product.controller");
@@ -16,11 +14,25 @@ const storage = multer.diskStorage({
     callback(null, uploadDir); // it returns file not found
   },
   //This function controls how the uploaded files are named when they are saved.
+
   filename: (req, file, callback) => {
-    // the product name can't have special chars like !, @, #, : , etc
-    const timestamp = new Date().toISOString().replace(/:/g, "-");
-    const name = `${timestamp}-${file.originalname}`;
-    callback(null, name);
+    // next : make the filename based on uuid
+    const rawName = req.body.name || "product";
+
+    const safeName = rawName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).slice(2, 8); // 6 chars
+    const ext = path.extname(file.originalname);
+
+    const filename = `${safeName}-${timestamp}-${random}${ext}`;
+
+    callback(null, filename);
   },
 });
 // filter function to validate the incoming file
@@ -60,7 +72,7 @@ router.post(
     { name: "mainImage", maxCount: 1 },
     { name: "additionalImages", maxCount: 4 },
   ]),
-  ProductController.addProduct
+  ProductController.addProduct,
 );
 
 // DELETE A PRODUCT
@@ -68,7 +80,7 @@ router.delete(
   "/:id",
   authenticate,
   authorizeAdmin,
-  ProductController.deleteProduct
+  ProductController.deleteProduct,
 );
 
 // UPDATE A PRODUCT
@@ -102,6 +114,6 @@ router.put(
       next();
     });
   },
-  ProductController.updateProduct
+  ProductController.updateProduct,
 );
 module.exports = router;

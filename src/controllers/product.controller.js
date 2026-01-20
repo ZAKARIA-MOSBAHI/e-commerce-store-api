@@ -1,5 +1,8 @@
 // does the image get deleted when updated ?
 const mongoose = require("mongoose");
+const fs = require("fs");
+const path = require("path");
+
 const Product = require("../models/product");
 const { removeFileExtension } = require("../utils/utils");
 // A HELPER FUNCTION TO HANDLE ERRORS
@@ -45,9 +48,7 @@ module.exports.addProduct = async (req, res) => {
       typeof req.body.sizes === "string"
         ? JSON.parse(req.body.sizes)
         : req.body.sizes;
-    console.log(req.files);
-    console.log(req.body);
-    console.log(sizes);
+
     // the stock will be calculated automatically from the sizes
 
     if (!req.files?.mainImage?.[0]) {
@@ -68,14 +69,14 @@ module.exports.addProduct = async (req, res) => {
       sizes,
       gender,
       badge,
-    mainImage: {
-  url: `/uploads/${mainImage.filename}`,
-  altText: removeFileExtension(mainImage.originalname),
-},
-additionalImages: additionalImages.map((file) => ({
-  url: `/uploads/${file.filename}`,
-  altText: removeFileExtension(file.originalname),
-})),
+      mainImage: {
+        url: `/uploads/${mainImage.filename}`,
+        altText: removeFileExtension(mainImage.originalname),
+      },
+      additionalImages: additionalImages.map((file) => ({
+        url: `/uploads/${file.filename}`,
+        altText: removeFileExtension(file.originalname),
+      })),
     });
     const result = await productToAdd.save();
     console.log(" Product created:", result);
@@ -115,7 +116,7 @@ module.exports.updateProduct = async (req, res) => {
     const result = await Product.findByIdAndUpdate(
       { _id: id },
       { $set: propertiesToUpdate },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
       //new: true: Returns the modified document rather than the original
       //runValidators: true: Runs schema validation on update
     ).exec();
@@ -130,20 +131,42 @@ module.exports.updateProduct = async (req, res) => {
   }
 };
 // DELETE A PRODUCT
+
 module.exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await Product.deleteOne({ _id: id }).exec();
 
-    if (result.deletedCount === 0) {
+    const product = await Product.findById(id).exec();
+
+    if (!product) {
       return res.status(404).json({ message: "Product not found" });
-    } else {
-      return res.status(200).json({ success: true });
     }
+
+    const images = [];
+
+    images.push(product.mainImage.url);
+    images.push(...product.additionalImages.map((img) => img.url));
+
+    images.forEach((imgPath) => {
+      const absolutePath = path.join(process.cwd(), imgPath);
+
+      if (fs.existsSync(absolutePath)) {
+        fs.unlink(absolutePath, (err) => {
+          if (err) {
+            console.error("Failed to delete image:", absolutePath, err);
+          }
+        });
+      }
+    });
+
+    await Product.deleteOne({ _id: id }).exec();
+
+    return res.status(200).json({ success: true });
   } catch (e) {
     handleErrors(e, res);
   }
 };
+
 module.exports.getFilteredProducts = async (req, res) => {
   try {
     const { category, gender, size, price } = req.body;
@@ -189,7 +212,7 @@ module.exports.getFilteredProducts = async (req, res) => {
 
     console.log(
       "Starting aggregation with pipeline:",
-      JSON.stringify(pipeline)
+      JSON.stringify(pipeline),
     );
     const filteredProducts = await Product.aggregate(pipeline);
     console.log("Aggregation done, returning results");

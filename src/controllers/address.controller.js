@@ -21,7 +21,7 @@ module.exports.getClientAddress = async (req, res) => {
     if (!address) {
       return res.status(404).json({ message: "Address not found" });
     }
-    res.json(address);
+    res.json({ success: true, address });
   } catch (e) {
     handleErrors(e, res);
   }

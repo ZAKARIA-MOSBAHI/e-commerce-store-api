@@ -19,7 +19,17 @@ const connectDB = require("../src/config/db");
 
 async function clearDatabase() {
   console.log("Clearing existing collections...");
-  const models = [User, Address, Category, Subcategory, Product, Discount, Cart, Favorite, Order];
+  const models = [
+    User,
+    Address,
+    Category,
+    Subcategory,
+    Product,
+    Discount,
+    Cart,
+    Favorite,
+    Order,
+  ];
   for (const model of models) {
     await model.deleteMany({});
   }
@@ -27,7 +37,7 @@ async function clearDatabase() {
 }
 async function seedDatabase() {
   try {
-    clearDatabase()
+    clearDatabase();
     // Connect to MongoDB
     await connectDB();
     console.log("MongoDB connected");
@@ -58,13 +68,13 @@ async function seedDatabase() {
 
     // ---- CATEGORIES ----
     if ((await Category.countDocuments()) === 0) {
-     const categories = await Category.insertMany([
-  { name: "T-Shirts", slug: "t-shirts" },
-  { name: "Sweatshirts", slug: "sweatshirts" },
-  { name: "Shorts", slug: "shorts" },
-  { name: "Trousers", slug: "trousers" },
-  { name: "Denim", slug: "denim" },
-]);
+      const categories = await Category.insertMany([
+        { name: "T-Shirts", slug: "t-shirts" },
+        { name: "Sweatshirts", slug: "sweatshirts" },
+        { name: "Shorts", slug: "shorts" },
+        { name: "Trousers", slug: "trousers" },
+        { name: "Denim", slug: "denim" },
+      ]);
 
       console.log("Categories seeded");
 
@@ -72,8 +82,18 @@ async function seedDatabase() {
       const subcategories = [];
       categories.forEach((cat) => {
         subcategories.push(
-          { _id: new mongoose.Types.ObjectId(), name: `${cat.name} Sub1`, slug: `${cat.slug}-sub1`, categoryId: cat._id },
-          { _id: new mongoose.Types.ObjectId(), name: `${cat.name} Sub2`, slug: `${cat.slug}-sub2`, categoryId: cat._id }
+          {
+            _id: new mongoose.Types.ObjectId(),
+            name: `${cat.name} Sub1`,
+            slug: `${cat.slug}-sub1`,
+            categoryId: cat._id,
+          },
+          {
+            _id: new mongoose.Types.ObjectId(),
+            name: `${cat.name} Sub2`,
+            slug: `${cat.slug}-sub2`,
+            categoryId: cat._id,
+          },
         );
       });
       await Subcategory.insertMany(subcategories);
@@ -91,7 +111,7 @@ async function seedDatabase() {
 
     // ---- PRODUCTS ----
     if ((await Product.countDocuments()) === 0) {
-      seedProducts();     
+      seedProducts();
     }
 
     // ---- ADDRESSES ----
@@ -101,7 +121,6 @@ async function seedDatabase() {
         userId: user._id,
         street: faker.location.streetAddress(),
         city: faker.location.city(),
-        state: faker.location.state(),
         country: faker.location.countryCode(),
         zipCode: faker.location.zipCode(),
       }));
@@ -113,11 +132,16 @@ async function seedDatabase() {
     if ((await Cart.countDocuments()) === 0) {
       const user = await User.findOne({ role: "user" });
       const product = await Product.findOne();
-      console.log(product)
+      console.log(product);
       await Cart.create({
         userId: user._id,
         items: [
-          { productId: product._id, price: product.price, quantity: 2, itemSize: "40" },
+          {
+            productId: product._id,
+            price: product.price,
+            quantity: 2,
+            itemSize: "40",
+          },
         ],
       });
       console.log("Carts seeded");
@@ -138,7 +162,14 @@ async function seedDatabase() {
       const address = await Address.findOne({ userId: user._id });
       await Order.create({
         userId: user._id,
-        items: [{ product: product._id, quantity: 1, price: product.price, size: "40" }],
+        items: [
+          {
+            product: product._id,
+            quantity: 1,
+            price: product.price,
+            size: "40",
+          },
+        ],
         total: product.price,
         shippingAddress: address._id,
         paymentMethod: "CreditCard",
