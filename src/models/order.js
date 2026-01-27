@@ -1,10 +1,21 @@
 const mongoose = require("mongoose");
-const orderSchema = mongoose.Schema(
+
+const orderSchema = new mongoose.Schema(
   {
+    // User (optional for guest checkout)
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: false,
     },
+
+    // Order reference (for emails & admin) // should be unique
+    orderNumber: {
+      type: String,
+      // required: true,
+      // unique: true,
+    },
+
     items: [
       {
         product: {
@@ -12,46 +23,66 @@ const orderSchema = mongoose.Schema(
           ref: "Product",
           required: true,
         },
+
         quantity: {
           type: Number,
           required: true,
           min: 1,
         },
+
         price: {
           type: Number,
-          required: true,
+          required: true, // price at order time
         },
+
         size: {
           type: String,
           required: true,
-        }, // Optional field
+        },
       },
     ],
-    total: { type: Number, required: true, min: 0 },
+
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
     shippingAddress: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Address",
+      required: true,
     },
-    status: {
+
+    // Order lifecycle
+    orderStatus: {
       type: String,
-      enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
-      default: "Pending",
+      enum: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"],
+      default: "PENDING",
     },
+
+    paymentStatus: {
+      type: String,
+      enum: ["UNPAID", "PAID", "REFUNDED"],
+      default: "UNPAID",
+    },
+
     paymentMethod: {
       type: String,
-      enum: ["CashOnDelivery", "CreditCard", "PayPal"],
       required: true,
+      default: "CashOnDelivery",
     },
   },
   {
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform: (doc, retDoc) => {
-        delete retDoc.__v;
-        return retDoc;
+      transform: (doc, ret) => {
+        delete ret.__v;
+        return ret;
       },
     },
-  }
+  },
 );
+
 module.exports = mongoose.model("Order", orderSchema);

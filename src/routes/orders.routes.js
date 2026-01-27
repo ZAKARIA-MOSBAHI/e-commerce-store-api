@@ -6,6 +6,8 @@ const { authenticate } = require("../middleware/auth");
 router.get("/", orderController.getOrders);
 // GET ORDER DETAILS BY ORDER ID
 router.get("/:id", orderController.getOrderById);
+// CREATE AN ORDER (Client)
+router.post("/me", authenticate, orderController.createClientOrder);
 // DELETE AN ORDER (CANCEL IT) BY ORDER ID
 router.delete("/cancel/:id", orderController.cancelOrder);
 // UPDATE AN ORDER BY ORDER ID
