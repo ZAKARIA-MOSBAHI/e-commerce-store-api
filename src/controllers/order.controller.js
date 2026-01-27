@@ -25,12 +25,13 @@ module.exports.getOrderById = (req, res) => {
     return handleErrors(e, res);
   }
 };
-// CREATE AN ORDER
+// CREATE AN ORDER (requires email sending )
 module.exports.createClientOrder = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
+    // should get the cart from the req body? or from the userId?
     const { userId } = req.user;
 
     const userCart = await Cart.findOne({ userId })
