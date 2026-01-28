@@ -72,6 +72,15 @@ const orderSchema = new mongoose.Schema(
       required: true,
       default: "CashOnDelivery",
     },
+    cancelledAt: {
+      type: Date,
+      required: false,
+    },
+    cancelledBy: {
+      type: String,
+      required: false,
+      enum: ["USER", "ADMIN"],
+    },
   },
   {
     timestamps: true,

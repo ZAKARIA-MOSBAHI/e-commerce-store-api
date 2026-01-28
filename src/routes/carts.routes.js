@@ -35,7 +35,4 @@ router.post(
 // REMOVE A DISCOUNT FROM THE CART
 router.post("/remove-discount", authenticate, cartController.removeDiscount);
 
-// CHECKOUT ROUTE , CONVERTS THE CART TO AN ORDER
-router.post("/checkout", authenticate, cartController.checkout);
-
 module.exports = router;

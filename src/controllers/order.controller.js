@@ -5,24 +5,76 @@ const Product = require("../models/product");
 const Address = require("../models/address");
 const Order = require("../models/order");
 const Notification = require("../models/notification");
-// GET ALL ORDERS
-module.exports.getOrders = (req, res) => {
+
+// GET ORDER BY ORDER ID
+module.exports.getClientOrderById = async (req, res) => {
   try {
-    res.json({
+    const { userId } = req.user;
+    const { id } = req.params;
+    const order = await Order.findOne({ userId, _id: id })
+      .select("-__v")
+      .populate([
+        { path: "userId", select: "name email phone _id" },
+        {
+          path: "shippingAddress",
+          select: "_id street city zipCode country",
+        },
+        {
+          path: "items.product",
+          select: "name price mainImage",
+        },
+      ])
+      .sort({ createdAt: -1 });
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "No order found for this user",
+      });
+    }
+    return res.status(200).json({
       success: true,
+      order,
     });
-  } catch (e) {
-    return handleErrors(e, res);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
+    });
   }
 };
-// GET ORDER BY ORDER ID
-module.exports.getOrderById = (req, res) => {
+//GET THE LOGGING USER'S ORDERS
+module.exports.getClientOrders = async (req, res) => {
   try {
-    res.json({
+    const { userId } = req.user;
+    const orders = await Order.find({ userId })
+      .select("-__v")
+      .populate([
+        { path: "userId", select: "name email phone _id" },
+        {
+          path: "shippingAddress",
+          select: "_id street city zipCode country",
+        },
+        {
+          path: "items.product",
+          select: "name price mainImage",
+        },
+      ])
+      .sort({ createdAt: -1 });
+    if (!orders) {
+      return res.status(404).json({
+        success: false,
+        message: "No orders found for this user",
+      });
+    }
+    return res.status(200).json({
       success: true,
+      orders,
     });
-  } catch (e) {
-    return handleErrors(e, res);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
+    });
   }
 };
 // CREATE AN ORDER (requires email sending )
@@ -122,8 +174,8 @@ module.exports.createClientOrder = async (req, res) => {
       { session },
     );
 
-    // next send confirmation email
     await session.commitTransaction();
+    // next send confirmation email after committing
     session.endSession();
 
     res.json({ success: true, order: newOrder[0] });
@@ -137,54 +189,237 @@ module.exports.createClientOrder = async (req, res) => {
     });
   }
 };
+// CANCEL AN ORDER BY THE LOGGED IN USER
+module.exports.cancelClientOrder = async (req, res) => {
+  try {
+    const order = await Order.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    });
 
-// CANCEL AN ORDER
-module.exports.cancelOrder = (req, res) => {
-  try {
-    res.json({
-      success: true,
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    if (order.orderStatus === "SHIPPED") {
+      return res.status(400).json({
+        success: false,
+        message: "Shipped orders cannot be cancelled",
+      });
+    }
+
+    order.orderStatus = "CANCELLED";
+    order.cancelledAt = new Date();
+    order.cancelledBy = "USER";
+
+    await order.save();
+
+    res.json({ success: true, order });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
     });
-  } catch (e) {
-    return handleErrors(e, res);
   }
 };
-// UPDATE AN ORDER
-module.exports.updateOrder = (req, res) => {
+
+// GET ALL ORDERS
+module.exports.getOrders = async (req, res) => {
   try {
-    res.json({
+    const order = await Order.find()
+      .select("-__v")
+      .populate([
+        { path: "userId", select: "name email phone _id" },
+        {
+          path: "shippingAddress",
+          select: "_id street city zipCode country",
+        },
+        {
+          path: "items.product",
+          select: "name price mainImage",
+        },
+      ])
+      .sort({ createdAt: -1 });
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "No order found",
+      });
+    }
+    return res.status(200).json({
       success: true,
+      order,
     });
-  } catch (e) {
-    return handleErrors(e, res);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
+    });
   }
 };
-//GET THE LOGGING USER'S ORDERS
-module.exports.getClientOrders = (req, res) => {
+// GET ORDER BY  ID (ADMIN)
+module.exports.getOrderById = async (req, res) => {
   try {
-    res.json({
+    const { id } = req.params;
+    const order = await Order.findOne({ _id: id })
+      .select("-__v")
+      .populate([
+        { path: "userId", select: "name email phone _id" },
+        {
+          path: "shippingAddress",
+          select: "_id street city zipCode country",
+        },
+        {
+          path: "items.product",
+          select: "name price mainImage",
+        },
+      ])
+      .sort({ createdAt: -1 });
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "No order found with this ID",
+      });
+    }
+    return res.status(200).json({
       success: true,
+      order,
     });
-  } catch (e) {
-    return handleErrors(e, res);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
+    });
   }
 };
-//GET THE LOGGING USER'S ORDERS BY ID
-module.exports.getClientOrderById = (req, res) => {
+/*
+-> these update functions should be optimized 
+*/
+
+// CONFIRM AN ORDER (ADMIN )
+module.exports.confirmOrder = async (req, res) => {
   try {
-    res.json({
-      success: true,
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    if (order.orderStatus !== "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: "Only pending orders can be confirmed",
+      });
+    }
+
+    order.orderStatus = "CONFIRMED";
+    await order.save();
+
+    res.json({ success: true, order });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
     });
-  } catch (e) {
-    return handleErrors(e, res);
   }
 };
-// CANCEL THE LOGGING USER'S ORDER
-module.exports.cancelClientOrder = (req, res) => {
+// SHIP AN ORDER (ADMIN)
+module.exports.shipOrder = async (req, res) => {
   try {
-    res.json({
-      success: true,
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    if (order.orderStatus !== "CONFIRMED") {
+      return res.status(400).json({
+        success: false,
+        message: "Only confirmed orders can be shipped",
+      });
+    }
+
+    order.orderStatus = "SHIPPED";
+    await order.save();
+
+    res.json({ success: true, order });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
     });
-  } catch (e) {
-    return handleErrors(e, res);
+  }
+};
+// DELIVER AN ORDER (ADMIN)
+module.exports.deliverOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    if (order.orderStatus !== "SHIPPED") {
+      return res.status(400).json({
+        success: false,
+        message: "Only shipped orders can be delivered",
+      });
+    }
+
+    order.orderStatus = "DELIVERED";
+    order.deliveredAt = new Date();
+    order.paymentStatus = "PAID";
+
+    await order.save();
+
+    res.json({ success: true, order });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
+    });
+  }
+};
+
+// CANCEL AN ORDER (ADMIN)
+module.exports.cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    if (order.orderStatus === "SHIPPED") {
+      return res.status(400).json({
+        success: false,
+        message: "Shipped orders cannot be cancelled",
+      });
+    }
+
+    order.orderStatus = "CANCELLED";
+    order.cancelledAt = new Date();
+    order.cancelledBy = "ADMIN";
+    order.paymentStatus = "REFUNDED";
+
+    await order.save();
+
+    res.json({ success: true, order });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server Error",
+    });
   }
 };
