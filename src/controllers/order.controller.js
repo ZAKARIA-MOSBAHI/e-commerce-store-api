@@ -23,8 +23,7 @@ module.exports.getClientOrderById = async (req, res) => {
           path: "items.product",
           select: "name price mainImage",
         },
-      ])
-      .sort({ createdAt: -1 });
+      ]);
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -133,7 +132,7 @@ module.exports.createClientOrder = async (req, res) => {
       await product.save({ session });
     }
 
-    const newOrder = await Order.create(
+    const [newOrder] = await Order.create(
       // using array to force mongoose to use the current session
       [
         {
@@ -153,6 +152,18 @@ module.exports.createClientOrder = async (req, res) => {
       { session },
     );
 
+    await newOrder.populate([
+      { path: "userId", select: "name email phone" },
+      {
+        path: "shippingAddress",
+        select: "street city zipCode country",
+      },
+      {
+        path: "items.product",
+        select: "name price mainImage",
+      },
+    ]);
+
     // Clear cart
     userCart.items = [];
     userCart.total = 0;
@@ -167,7 +178,7 @@ module.exports.createClientOrder = async (req, res) => {
           type: "ORDER_CREATED",
           // optional : use user name in message
           message: `New order placed by user ${userId}`,
-          order: newOrder[0]._id,
+          order: newOrder._id,
           sender: userId,
         },
       ],
@@ -178,7 +189,7 @@ module.exports.createClientOrder = async (req, res) => {
     // next send confirmation email after committing
     session.endSession();
 
-    res.json({ success: true, order: newOrder[0] });
+    res.json({ success: true, order: newOrder });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -203,10 +214,10 @@ module.exports.cancelClientOrder = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
-    if (order.orderStatus === "SHIPPED") {
+    if (order.orderStatus === "SHIPPED" || order.orderStatus === "DELIVERED") {
       return res.status(400).json({
         success: false,
-        message: "Shipped orders cannot be cancelled",
+        message: "Shipped or delivered orders cannot be cancelled",
       });
     }
 
@@ -228,7 +239,7 @@ module.exports.cancelClientOrder = async (req, res) => {
 // GET ALL ORDERS
 module.exports.getOrders = async (req, res) => {
   try {
-    const order = await Order.find()
+    const orders = await Order.find()
       .select("-__v")
       .populate([
         { path: "userId", select: "name email phone _id" },
@@ -242,7 +253,7 @@ module.exports.getOrders = async (req, res) => {
         },
       ])
       .sort({ createdAt: -1 });
-    if (!order) {
+    if (!orders) {
       return res.status(404).json({
         success: false,
         message: "No order found",
@@ -250,7 +261,7 @@ module.exports.getOrders = async (req, res) => {
     }
     return res.status(200).json({
       success: true,
-      order,
+      orders,
     });
   } catch (error) {
     return res.status(500).json({
@@ -401,10 +412,10 @@ module.exports.cancelOrder = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
-    if (order.orderStatus === "SHIPPED") {
+    if (order.orderStatus === "SHIPPED" || order.orderStatus === "DELIVERED") {
       return res.status(400).json({
         success: false,
-        message: "Shipped orders cannot be cancelled",
+        message: "Shipped or delivered orders cannot be cancelled",
       });
     }
 
