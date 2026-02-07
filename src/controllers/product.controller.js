@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 
 const Product = require("../models/product");
+const Category = require("../models/category");
 const { removeFileExtension } = require("../utils/utils");
 // A HELPER FUNCTION TO HANDLE ERRORS
 const handleErrors = require("../utils/errorHandler");
@@ -27,7 +28,9 @@ module.exports.getAllProducts = async (req, res) => {
 module.exports.getProductById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await Product.findById(id, { __v: 0 }).exec();
+    const result = await Product.findById(id, { __v: 0 })
+      .populate("categoryId")
+      .exec();
     // HANDLING BUISNESS LOGIC ERRORS (errors that are not thrown , or rejected)
     if (!result) {
       // this will be returned if the id format is valid but not found
@@ -86,46 +89,95 @@ module.exports.addProduct = async (req, res) => {
   }
 };
 // UPDATE A PRODUCT
+// what do you think it's working and updating and cleaning
 module.exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const propertiesToUpdate = {};
-    // Handling images update
-    if (req.files.mainImage) {
-      const newMainImage = {
-        url: `uploads/${req.files.mainImage[0].filename}`,
-        altText: removeFileExtension(req.files.mainImage[0].originalname),
-      };
-      propertiesToUpdate.mainImage = newMainImage;
-    }
-    if (req.files.additionalImages) {
-      const newAdditionalImages = req.files.additionalImages.map((image) => ({
-        url: `uploads/${image.filename}`,
-        altText: removeFileExtension(image.originalname),
-      }));
-      propertiesToUpdate.additionalImages = newAdditionalImages;
-    }
 
-    const allowedFields = ["name", "price", "description", "stock", "sizes"];
-    allowedFields.forEach((key) => {
-      if (req.body[key] !== undefined) {
-        propertiesToUpdate[key] = req.body[key];
+    const { categoryId } = req.body;
+
+    const allowedFields = [
+      "name",
+      "description",
+      "sizes",
+      "price",
+      "categoryId",
+    ];
+    const product = await Product.findById(id);
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product Not Found!" });
+    }
+    let category;
+    if (categoryId) {
+      console.log("category id : ", categoryId);
+      category = await Category.findById(categoryId);
+      if (!category) {
+        return res.status(404).json({
+          success: false,
+          message: "Category not found",
+        });
+      }
+      product.categoryId = categoryId;
+    }
+    allowedFields.forEach((f) => {
+      const fieldValue = req.body[f];
+      console.log("field ", f, "value ", fieldValue);
+      if (fieldValue !== "" && fieldValue !== undefined) {
+        if (f === "categoryId") return;
+        if (f === "sizes") {
+          product[f] = JSON.parse(fieldValue);
+          return;
+        }
+        product[f] = fieldValue;
       }
     });
-    // used findByIdAndUpdate bcs the updateOne func doesn't return the updated document
-    const result = await Product.findByIdAndUpdate(
-      { _id: id },
-      { $set: propertiesToUpdate },
-      { new: true, runValidators: true },
-      //new: true: Returns the modified document rather than the original
-      //runValidators: true: Runs schema validation on update
-    ).exec();
-    if (!result) {
-      // Proper check for null document
-      return res.status(404).json({ message: "Product not found" });
-    } else {
-      return res.status(200).json({ success: true, product: result });
+    let removedImages = req.body.removedImages;
+    console.log("removed images ", removedImages);
+    if (removedImages) {
+      removedImages = JSON.parse(removedImages);
+      removedImages.forEach((ri) => {
+        const relativePath = ri.replace(/^\/+/, ""); // remove leading /
+        const absolutePath = path.join(process.cwd(), relativePath);
+
+        if (fs.existsSync(absolutePath)) {
+          fs.unlinkSync(absolutePath);
+        }
+      });
     }
+    const isMainImg = req.files?.mainImage?.length > 0;
+    if (isMainImg) {
+      const mainImage = req.files?.mainImage[0];
+      console.log("main image ", mainImage);
+      product.mainImage = {
+        url: `/uploads/${mainImage.filename}`,
+        altText: removeFileExtension(mainImage.originalname),
+      };
+    }
+    const additionalImages = req.files?.additionalImages;
+    console.log("additional images ", additionalImages);
+
+    if (additionalImages?.length > 0) {
+      let additionalImagesWithPaths = [];
+      additionalImages.forEach((ai) => {
+        additionalImagesWithPaths.push({
+          url: `/uploads/${ai.filename}`,
+          altText: removeFileExtension(ai.originalname),
+        });
+      });
+      product.additionalImages = additionalImagesWithPaths;
+    }
+
+    await product.save();
+    const updatedProduct = await Product.findById(product._id)
+      .populate("categoryId")
+      .lean();
+    return res.status(200).json({
+      success: true,
+      updatedProduct,
+      message: "Product updated successfully!",
+    });
   } catch (e) {
     handleErrors(e, res);
   }

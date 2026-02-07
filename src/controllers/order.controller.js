@@ -5,6 +5,7 @@ const Product = require("../models/product");
 const Address = require("../models/address");
 const Order = require("../models/order");
 const Notification = require("../models/notification");
+const User = require("../models/user");
 
 // GET ORDER BY ORDER ID
 module.exports.getClientOrderById = async (req, res) => {
@@ -103,6 +104,14 @@ module.exports.createClientOrder = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Shipping address not found",
+      });
+    }
+    const userInfos = await User.findOne({ _id: userId }).session(session);
+    if (!userInfos.phone) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Phone number not found",
       });
     }
 

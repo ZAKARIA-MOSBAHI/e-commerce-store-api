@@ -31,7 +31,7 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   // this handler will be called when an error occurs in the database
   // because the database will not call any route
-  res.status(err.status || 500).json({ error: { message: err.message } });
+  res.status(err.status || 500).json({ success: false, message: err.message });
 });
 const PORT = process.env.PORT || 3000;
 

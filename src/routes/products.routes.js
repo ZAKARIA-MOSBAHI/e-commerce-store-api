@@ -70,7 +70,7 @@ router.post(
   authorizeAdmin,
   upload.fields([
     { name: "mainImage", maxCount: 1 },
-    { name: "additionalImages", maxCount: 4 },
+    { name: "additionalImages", maxCount: 3 },
   ]),
   ProductController.addProduct,
 );
@@ -86,17 +86,19 @@ router.delete(
 // UPDATE A PRODUCT
 router.put(
   "/:id",
+
+  authenticate,
+  authorizeAdmin,
   (req, res, next) => {
-    // Wrap the Multer middleware to catch errors
     upload.fields([
       { name: "mainImage", maxCount: 1 },
-      { name: "additionalImages", maxCount: 4 },
+      { name: "additionalImages", maxCount: 3 },
     ])(req, res, function (err) {
       if (err) {
         if (err instanceof multer.MulterError) {
           const errors = {
             LIMIT_UNEXPECTED_FILE:
-              "Too many files for additionalImages (max 4)",
+              "Too many files for additionalImages (max 3)",
             LIMIT_FILE_SIZE: "File too large (max 5MB)",
             LIMIT_FILE_COUNT: "Too many files",
           };
@@ -110,9 +112,24 @@ router.put(
           message: "Server error during file upload",
         });
       }
-      // No error, pass control to the next middleware/handler
       next();
     });
+  },
+  (req, res, next) => {
+    console.log(
+      "-----------------------------------------------------------------------------------------",
+    );
+    console.log("request body ");
+    console.log(req.body);
+    console.log(
+      "-----------------------------------------------------------------------------------------",
+    );
+    console.log("request files ");
+    console.log(req.files);
+    console.log(
+      "-----------------------------------------------------------------------------------------",
+    );
+    next();
   },
   ProductController.updateProduct,
 );

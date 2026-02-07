@@ -5,6 +5,7 @@ const User = require("../models/user");
 // General authentication
 exports.authenticate = async (req, res, next) => {
   try {
+    console.log("object");
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
       console.log("Token not found");
