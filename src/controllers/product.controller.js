@@ -83,7 +83,11 @@ module.exports.addProduct = async (req, res) => {
     });
     const result = await productToAdd.save();
     console.log(" Product created:", result);
-    return res.status(201).json({ success: true, product: result });
+    return res.status(201).json({
+      success: true,
+      product: result,
+      message: "Product Created Successfully!",
+    });
   } catch (e) {
     handleErrors(e, res);
   }
@@ -213,7 +217,9 @@ module.exports.deleteProduct = async (req, res) => {
 
     await Product.deleteOne({ _id: id }).exec();
 
-    return res.status(200).json({ success: true });
+    return res
+      .status(200)
+      .json({ success: true, message: "Product Deleted Successfully!" });
   } catch (e) {
     handleErrors(e, res);
   }

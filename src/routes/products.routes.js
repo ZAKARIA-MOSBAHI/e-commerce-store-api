@@ -115,22 +115,7 @@ router.put(
       next();
     });
   },
-  (req, res, next) => {
-    console.log(
-      "-----------------------------------------------------------------------------------------",
-    );
-    console.log("request body ");
-    console.log(req.body);
-    console.log(
-      "-----------------------------------------------------------------------------------------",
-    );
-    console.log("request files ");
-    console.log(req.files);
-    console.log(
-      "-----------------------------------------------------------------------------------------",
-    );
-    next();
-  },
+
   ProductController.updateProduct,
 );
 module.exports = router;
