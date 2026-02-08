@@ -115,7 +115,7 @@ module.exports.getUsers = async (req, res) => {
   try {
     const users = await User.find({}, { __v: 0 })
       .select("-password")
-      .populate("address");
+      .populate("addressId");
     return res.status(200).json({ users });
   } catch (e) {
     return handleErrors(e, res);
