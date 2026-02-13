@@ -1,38 +1,25 @@
 // this middleware is used for checking the user's role
 const jwt = require("jsonwebtoken");
-const User = require("../models/user");
 
 // General authentication
 exports.authenticate = async (req, res, next) => {
   try {
-    console.log("object");
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
-      console.log("Token not found");
-      return res
-        .status(401)
-        .json({ name: "AuthError", message: "Unauthorized" });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
-    if (err.name === "TokenExpiredError") {
-      return res
-        .status(401)
-        .json({ name: "accessTokenExpired", message: "Token has expired" });
-    } else {
-      return res
-        .status(401)
-        .json({ name: "AuthError", message: "Unauthorized" });
-    }
+    return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 };
 
 // Admin-only access
 exports.authorizeAdmin = (req, res, next) => {
   if (req.user.role !== "admin") {
-    return res.status(403).json({ message: "Forbidden" });
+    return res.status(403).json({ success: false, message: "Forbidden" });
   }
   next();
 };

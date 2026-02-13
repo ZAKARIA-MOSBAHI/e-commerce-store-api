@@ -1,5 +1,32 @@
 const mongoose = require("mongoose");
+/**
+ * Add an emailStatus field in Order model:
 
+emailStatus: {
+  type: String,
+  enum: ["pending", "sent", "failed"],
+  default: "pending"
+}
+
+
+Workflow:
+
+Create order with emailStatus: "pending"
+
+Try sending email
+
+If success → update to "sent"
+
+If error → update to "failed"
+
+Now you can:
+
+Retry failed emails
+
+Monitor system health
+
+Create admin dashboard
+ */
 const orderSchema = new mongoose.Schema(
   {
     // User (optional for guest checkout)

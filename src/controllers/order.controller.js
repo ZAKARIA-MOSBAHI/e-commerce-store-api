@@ -1,4 +1,3 @@
-const handleErrors = require("../utils/errorHandler");
 const mongoose = require("mongoose");
 const Cart = require("../models/cart");
 const Product = require("../models/product");
@@ -6,6 +5,7 @@ const Address = require("../models/address");
 const Order = require("../models/order");
 const Notification = require("../models/notification");
 const User = require("../models/user");
+const { sendOrderConfirmationEmail } = require("../services/email.service");
 
 // GET ORDER BY ORDER ID
 module.exports.getClientOrderById = async (req, res) => {
@@ -193,7 +193,11 @@ module.exports.createClientOrder = async (req, res) => {
       ],
       { session },
     );
-
+    await sendOrderConfirmationEmail({
+      to: userInfos.email,
+      name: userInfos.name,
+      orderId: newOrder._id,
+    });
     await session.commitTransaction();
     // next send confirmation email after committing
     session.endSession();

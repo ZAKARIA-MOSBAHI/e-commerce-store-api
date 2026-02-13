@@ -62,6 +62,7 @@ module.exports.createClientAddress = async (req, res) => {
     res.status(201).json({
       user: updatedUser,
       newAddress,
+      message: "Address Created Successfully!",
     });
   } catch (e) {
     handleErrors(e, res);

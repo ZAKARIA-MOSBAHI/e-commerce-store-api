@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const cartController = require("../controllers/cart.controller");
-const { authenticate } = require("../middleware/auth");
-const { validateDiscount } = require("../middleware/validateDiscount");
+const { authenticate, authorizeAdmin } = require("../middleware/auth");
 // GET THE USER'S CURRENT CART
 router.get("/me", authenticate, cartController.getClientCart);
 
@@ -34,5 +33,13 @@ router.post(
 );
 // REMOVE A DISCOUNT FROM THE CART
 router.post("/remove-discount", authenticate, cartController.removeDiscount);
-
+// GET ALL CARTS (ADMIN)
+router.get("/", authenticate, authorizeAdmin, cartController.getCarts);
+// DELETE CART (ADMIN)
+router.delete(
+  "/:cartId",
+  authenticate,
+  authorizeAdmin,
+  cartController.deleteCart,
+);
 module.exports = router;

@@ -103,9 +103,16 @@ module.exports.addItemsToClientCart = async (req, res) => {
       .populate("items.productId", "name price mainImage sizes")
       .lean();
 
-    return res.status(200).json({ success: true, cart: populatedCart });
-  } catch (error) {
-    return handleErrors(error, res);
+    return res.status(200).json({
+      success: true,
+      cart: populatedCart,
+      message: "Product added to cart",
+    });
+  } catch (e) {
+    return {
+      success: false,
+      message: e?.message || "Failed to add product to cart",
+    };
   }
 };
 // REMOVE ITEM FROM THE CLIENT'S CART
@@ -535,6 +542,64 @@ module.exports.removeDiscount = async (req, res) => {
       success: true,
       message: "Discount removed successfully",
       cart: userCart.toObject(),
+    });
+  } catch (e) {
+    return handleErrors(e, res);
+  }
+};
+
+// GET ALL CARTS (ADMIN)
+module.exports.getCarts = async (req, res) => {
+  try {
+    const carts = await Cart.find()
+      //populate also the userId prop
+      .populate({
+        path: "items.productId",
+        select: "name price mainImage sizes",
+      })
+      .populate({
+        path: "userId",
+        select: "name email",
+      })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      carts,
+      totalCarts: carts.length,
+    });
+  } catch (e) {
+    return res.status(500).json({
+      success: false,
+      message: e?.message || "Couldn't get carts!",
+    });
+  }
+};
+// DELETE CART (ADMIN)
+module.exports.deleteCart = async (req, res) => {
+  try {
+    const { cartId } = req.params;
+
+    if (!cartId || !mongoose.Types.ObjectId.isValid(cartId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid cart ID",
+      });
+    }
+
+    const deletedCart = await Cart.findByIdAndDelete(cartId);
+
+    if (!deletedCart) {
+      return res.status(404).json({
+        success: false,
+        message: "Cart not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Cart deleted successfully",
+      cart: deletedCart.toObject(),
     });
   } catch (e) {
     return handleErrors(e, res);
