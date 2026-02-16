@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { MOROCCAN_PHONE_REGEX } = require("../config/constants");
 const userSchema = mongoose.Schema(
   {
     name: {
@@ -24,7 +25,7 @@ const userSchema = mongoose.Schema(
       validate: {
         validator: function (v) {
           if (v) {
-            return /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/.test(v);
+            return MOROCCAN_PHONE_REGEX.test(v);
           }
           return true;
         },

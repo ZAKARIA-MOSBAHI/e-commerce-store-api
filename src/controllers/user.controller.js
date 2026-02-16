@@ -3,6 +3,8 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const handleErrors = require("../utils/errorHandler");
 const { generateAccessToken, generateRefreshToken } = require("../utils/utils");
+const { MOROCCAN_PHONE_REGEX, ZIPCODE_REGEX } = require("../config/constants");
+const Address = require("../models/address");
 
 module.exports.signup = async (req, res) => {
   // next add confirm password field
@@ -234,5 +236,159 @@ module.exports.updateUser = async (req, res) => {
     return res.status(200).json({ user });
   } catch (e) {
     return handleErrors(e, res);
+  }
+};
+
+module.exports.createUser = async (req, res) => {
+  try {
+    const fields = [
+      "name",
+      "email",
+      "password",
+      "role",
+      "phone",
+      "street",
+      "city",
+      "zipCode",
+    ];
+
+    // 1️⃣ Check for missing fields
+    for (const field of fields) {
+      const value = req.body[field];
+      if (value === undefined || value === null || value === "") {
+        return res.status(400).json({
+          success: false,
+          message: `Missing field ${field}`,
+        });
+      }
+    }
+
+    let { name, email, password, role, phone, street, city, zipCode } =
+      req.body;
+
+    // Trim strings
+    name = name.trim();
+    email = email.trim();
+    street = street.trim();
+    city = city.trim();
+    phone = phone.trim();
+    zipCode = zipCode.trim();
+
+    // 2️⃣ Validate role
+    if (!["user", "admin"].includes(role)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid role value" });
+    }
+
+    // 3️⃣ Validate phone
+    if (!MOROCCAN_PHONE_REGEX.test(phone)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid phone value" });
+    }
+
+    // 4️⃣ Validate zipCode
+    if (!ZIPCODE_REGEX.test(zipCode)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid zip code value" });
+    }
+
+    // 5️⃣ Validate street and city length
+    if (street.length < 10 || city.length < 5) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Street must be at least 10 characters and City at least 5 characters",
+      });
+    }
+
+    // 6️⃣ Check existing username
+    const existingUserName = await User.findOne({ name });
+    if (existingUserName) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Username already exists" });
+    }
+
+    // 7️⃣ Check existing email
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already exists" });
+    }
+
+    // 8️⃣ Validate password length
+    if (password.trim().length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    }
+
+    // 9️⃣ Hash password
+    const hash = await bcrypt.hash(password, 12);
+    const userId = new mongoose.Types.ObjectId();
+
+    // 10️⃣ Create user
+    const user = new User({
+      _id: userId,
+      name,
+      email,
+      password: hash,
+      phone,
+      role,
+      usedDiscounts: [],
+      eligibleDiscounts: [],
+    });
+
+    await user.save();
+
+    // 11️⃣ Create address
+    const userAddress = new Address({
+      userId,
+      street,
+      city,
+      zipCode,
+    });
+
+    await userAddress.save();
+
+    // 12️⃣ Prepare response
+    const populatedUser = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      usedDiscounts: user.usedDiscounts,
+      eligibleDiscounts: user.eligibleDiscounts,
+      lastLogin: user.lastLogin,
+      refreshToken: user.refreshToken,
+      currencyPreference: user.currencyPreference,
+      addressId: {
+        _id: userAddress._id,
+        country: userAddress.country,
+        city: userAddress.city,
+        zipCode: userAddress.zipCode,
+        street: userAddress.street,
+        userId: userAddress.userId,
+      },
+    };
+
+    return res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      newUser: populatedUser,
+    });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };

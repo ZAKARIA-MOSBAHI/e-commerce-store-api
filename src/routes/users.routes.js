@@ -6,8 +6,10 @@ const { authenticate, authorizeAdmin } = require("../middleware/auth");
 
 // CREATE A USER (only clients) , admin accounts are created in the database manually
 router.post("/signup", userController.signup);
+// CREATE Users (ADMIN)
+router.post("/create", authenticate, authorizeAdmin, userController.createUser);
 // LOGIN FOR BOTH CLIENTS AND ADMIN
-router.post("/login",  userController.login);
+router.post("/login", userController.login);
 
 // GET USERS (only admin) ,
 router.get("/", authenticate, authorizeAdmin, userController.getUsers);
@@ -24,7 +26,7 @@ router.delete(
   "/delete/:id",
   authenticate,
   authorizeAdmin,
-  userController.deleteUser
+  userController.deleteUser,
 );
 
 // UPDATE CLIENT USER ACCOUNT (only the user himself can update his account)
@@ -34,7 +36,7 @@ router.put(
   "/update/:id",
   authenticate,
   authorizeAdmin,
-  userController.updateUser
+  userController.updateUser,
 );
 
 module.exports = router;

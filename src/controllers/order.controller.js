@@ -202,7 +202,11 @@ module.exports.createClientOrder = async (req, res) => {
     // next send confirmation email after committing
     session.endSession();
 
-    res.json({ success: true, order: newOrder });
+    res.json({
+      success: true,
+      order: newOrder,
+      message: "Order created successfully!",
+    });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
