@@ -5,6 +5,7 @@ const handleErrors = require("../utils/errorHandler");
 const { generateAccessToken, generateRefreshToken } = require("../utils/utils");
 const { MOROCCAN_PHONE_REGEX, ZIPCODE_REGEX } = require("../config/constants");
 const Address = require("../models/address");
+const Notification = require("../models/notification");
 
 module.exports.signup = async (req, res) => {
   // next add confirm password field
@@ -113,16 +114,72 @@ module.exports.login = async (req, res) => {
   }
 };
 // get users (admin)
+
 module.exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find({}, { __v: 0 })
-      .select("-password")
-      .populate("addressId");
-    return res.status(200).json({ users });
+    const users = await User.aggregate([
+      {
+        $lookup: {
+          from: "addresses",
+          localField: "addressId",
+          foreignField: "_id",
+          as: "addressId",
+          pipeline: [
+            {
+              $project: {
+                userId: 0,
+                __v: 0,
+                createdAt: 0,
+                updatedAt: 0,
+              },
+            },
+          ],
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$addressId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      {
+        $lookup: {
+          from: "orders",
+          localField: "_id",
+          foreignField: "userId",
+          as: "orders",
+        },
+      },
+
+      {
+        $addFields: {
+          orderCount: { $size: "$orders" },
+        },
+      },
+
+      {
+        $project: {
+          password: 0,
+          refreshToken: 0,
+          updatedAt: 0,
+          createdAt: 0,
+          __v: 0,
+          orders: 0, // remove orders array, keep only count
+        },
+      },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
   } catch (e) {
     return handleErrors(e, res);
   }
 };
+
 // get user by id (admin)
 module.exports.getUserById = async (req, res) => {
   try {
@@ -161,18 +218,84 @@ module.exports.deleteClientUser = async (req, res) => {
   }
 };
 // delete a user (admin)
+
 module.exports.deleteUser = async (req, res) => {
   const { id } = req.params;
-  console.log(id);
+  const adminId = req.user.userId;
+
+  const session = await mongoose.startSession();
+
   try {
-    const response = await User.findByIdAndDelete(id);
-    return res
-      .status(200)
-      .json({ message: "User deleted successfully", response });
-  } catch (e) {
-    return handleErrors(e, res);
+    // 1. Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    session.startTransaction();
+
+    // 2. Check if user exists
+    const user = await User.findById(id).session(session);
+
+    if (!user) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // 3. Prevent deleting admin accounts
+    if (user.role === "admin") {
+      await session.abortTransaction();
+      return res.status(403).json({
+        success: false,
+        message: "Admin accounts cannot be deleted",
+      });
+    }
+
+    // 4. Delete associated addresses
+    await Address.deleteMany({ userId: id }).session(session);
+
+    // 5. Delete user
+    await User.findByIdAndDelete(id).session(session);
+
+    // 6. Create notification ONLY after successful deletion
+    await Notification.create(
+      [
+        {
+          type: "ACCOUNT_DELETED",
+          message: `User account ${user.email} has been deleted by admin.`,
+          sender: adminId,
+          metadata: {
+            userId: id,
+          },
+        },
+      ],
+      { session },
+    );
+
+    // 7. Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: "User and associated addresses deleted successfully",
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
+
 // Update the logged-in user account (client)
 module.exports.updateClientUser = async (req, res) => {
   try {
@@ -240,6 +363,10 @@ module.exports.updateUser = async (req, res) => {
 };
 
 module.exports.createUser = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  const adminId = req.user.userId;
+  console.log(req.body);
   try {
     const fields = [
       "name",
@@ -255,7 +382,9 @@ module.exports.createUser = async (req, res) => {
     // 1️⃣ Check for missing fields
     for (const field of fields) {
       const value = req.body[field];
-      if (value === undefined || value === null || value === "") {
+      if (!value) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(400).json({
           success: false,
           message: `Missing field ${field}`,
@@ -266,7 +395,6 @@ module.exports.createUser = async (req, res) => {
     let { name, email, password, role, phone, street, city, zipCode } =
       req.body;
 
-    // Trim strings
     name = name.trim();
     email = email.trim();
     street = street.trim();
@@ -276,6 +404,8 @@ module.exports.createUser = async (req, res) => {
 
     // 2️⃣ Validate role
     if (!["user", "admin"].includes(role)) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({ success: false, message: "Invalid role value" });
@@ -283,6 +413,8 @@ module.exports.createUser = async (req, res) => {
 
     // 3️⃣ Validate phone
     if (!MOROCCAN_PHONE_REGEX.test(phone)) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({ success: false, message: "Invalid phone value" });
@@ -290,13 +422,17 @@ module.exports.createUser = async (req, res) => {
 
     // 4️⃣ Validate zipCode
     if (!ZIPCODE_REGEX.test(zipCode)) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({ success: false, message: "Invalid zip code value" });
     }
 
     // 5️⃣ Validate street and city length
-    if (street.length < 10 || city.length < 5) {
+    if (street.length < 10 || city.length < 3) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         message:
@@ -305,16 +441,20 @@ module.exports.createUser = async (req, res) => {
     }
 
     // 6️⃣ Check existing username
-    const existingUserName = await User.findOne({ name });
+    const existingUserName = await User.findOne({ name }).session(session);
     if (existingUserName) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({ success: false, message: "Username already exists" });
     }
 
     // 7️⃣ Check existing email
-    const existingEmail = await User.findOne({ email });
+    const existingEmail = await User.findOne({ email }).session(session);
     if (existingEmail) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({ success: false, message: "Email already exists" });
@@ -322,6 +462,8 @@ module.exports.createUser = async (req, res) => {
 
     // 8️⃣ Validate password length
     if (password.trim().length < 8) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         message: "Password must be at least 8 characters",
@@ -331,8 +473,20 @@ module.exports.createUser = async (req, res) => {
     // 9️⃣ Hash password
     const hash = await bcrypt.hash(password, 12);
     const userId = new mongoose.Types.ObjectId();
+    const addressId = new mongoose.Types.ObjectId();
 
-    // 10️⃣ Create user
+    // 10️⃣ Create address
+    const userAddress = new Address({
+      _id: addressId,
+      userId,
+      street,
+      city,
+      zipCode,
+    });
+
+    await userAddress.save({ session });
+
+    // 11️⃣ Create user
     const user = new User({
       _id: userId,
       name,
@@ -340,23 +494,33 @@ module.exports.createUser = async (req, res) => {
       password: hash,
       phone,
       role,
+      addressId,
       usedDiscounts: [],
       eligibleDiscounts: [],
     });
 
-    await user.save();
+    await user.save({ session });
 
-    // 11️⃣ Create address
-    const userAddress = new Address({
-      userId,
-      street,
-      city,
-      zipCode,
-    });
+    // 12️⃣ Create a notification for all admins
+    await Notification.create(
+      [
+        {
+          type: "USER_CREATED",
+          message: `New user account created: ${name} by admin.`,
+          sender: adminId,
+          metadata: {
+            userId,
+          },
+        },
+      ],
+      { session },
+    );
 
-    await userAddress.save();
+    // 13️⃣ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
 
-    // 12️⃣ Prepare response
+    // 14️⃣ Prepare response
     const populatedUser = {
       _id: user._id,
       name: user.name,
@@ -364,6 +528,7 @@ module.exports.createUser = async (req, res) => {
       phone: user.phone,
       role: user.role,
       status: user.status,
+      orderCount: 0,
       usedDiscounts: user.usedDiscounts,
       eligibleDiscounts: user.eligibleDiscounts,
       lastLogin: user.lastLogin,
@@ -385,10 +550,99 @@ module.exports.createUser = async (req, res) => {
       newUser: populatedUser,
     });
   } catch (error) {
-    console.error("Error creating user:", error);
+    await session.abortTransaction();
+    session.endSession();
     return res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+module.exports.suspendUser = async (req, res) => {
+  const { id } = req.params;
+  const adminId = req.user.userId;
+
+  const session = await mongoose.startSession();
+
+  try {
+    // 1. Validate ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    session.startTransaction();
+
+    // 2. Check if user exists
+    const user = await User.findById(id).session(session);
+
+    if (!user) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // 3. Prevent suspending admins
+    if (user.role === "admin") {
+      await session.abortTransaction();
+      return res.status(403).json({
+        success: false,
+        message: "Admin accounts cannot be suspended",
+      });
+    }
+
+    // 4. Prevent duplicate suspension
+    if (user.status === "suspended") {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "User is already suspended",
+      });
+    }
+
+    // 5. Suspend user
+    user.status = "suspended";
+    await user.save({ session });
+
+    // 6. Create notification
+    await Notification.create(
+      [
+        {
+          type: "ACCOUNT_SUSPENDED",
+          message: `User account ${user.email} has been suspended by admin.`,
+          sender: adminId,
+          metadata: {
+            userId: id,
+          },
+        },
+      ],
+      { session },
+    );
+
+    // 7. Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: "User suspended successfully",
+      user: {
+        _id: user._id,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
     });
   }
 };

@@ -18,9 +18,6 @@ router.get("/", authenticate, authorizeAdmin, userController.getUsers);
 router.get("/me", authenticate, userController.getClientUser);
 // GET USER BY ID (only admin) ,
 router.get("/:id", authenticate, authorizeAdmin, userController.getUserById);
-
-// DELETE CLIENT USER ACCOUNT (only the user himself can delete his account)
-router.delete("/delete", authenticate, userController.deleteClientUser);
 // DELETE  A USER   (only admin)
 router.delete(
   "/delete/:id",
@@ -28,15 +25,24 @@ router.delete(
   authorizeAdmin,
   userController.deleteUser,
 );
+// DELETE CLIENT USER ACCOUNT (only the user himself can delete his account)
+router.delete("/me/delete", authenticate, userController.deleteClientUser);
 
 // UPDATE CLIENT USER ACCOUNT (only the user himself can update his account)
-router.put("/update", authenticate, userController.updateClientUser);
+router.put("/me/update", authenticate, userController.updateClientUser);
 // UPDATE A USER (only admin)
 router.put(
   "/update/:id",
   authenticate,
   authorizeAdmin,
   userController.updateUser,
+);
+
+router.put(
+  "/suspend/:id",
+  authenticate,
+  authorizeAdmin,
+  userController.suspendUser,
 );
 
 module.exports = router;

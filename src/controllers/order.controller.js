@@ -187,8 +187,8 @@ module.exports.createClientOrder = async (req, res) => {
           type: "ORDER_CREATED",
           // optional : use user name in message
           message: `New order placed by user ${userId}`,
-          order: newOrder._id,
           sender: userId,
+          order: newOrder._id,
         },
       ],
       { session },
